@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.2 2004/09/03 19:29:50 JonBob Exp $
+// $Id: parser.inc,v 1.3 2004/09/07 21:51:41 JonBob Exp $
 
 /**
  * @file
@@ -9,28 +9,22 @@
 /**
  * Parse out function definitions from the PHP manual.
  */
-function api_parse_php_manual($directory) {
-  $files = file_scan_directory($directory, 'ref.(.*).html');
+function api_parse_php_manual($location) {
+  $source = file_get_contents($location);
 
-  foreach ($files as $path => $file) {
-    $file_name = substr($path, strrpos($path, '/') + 1);
-    $source = file_get_contents($path);
-
-    $function_matches = array();
-    preg_match_all('!<DT\n><A\nHREF="function.([a-zA-Z0-9-]+).html"\n>([a-zA-Z0-9_]+)</A
->&nbsp;--&nbsp;(.*?)</DT\n>!s', $source, $function_matches, PREG_SET_ORDER);
-    foreach ($function_matches as $function_match) {
-      $docblock = array(
-        'object_name' => $function_match[2],
-        'branch_name' => 'php',
-        'object_type' => 'function',
-        'file_name' => $file_name,
-        'title' => $function_match[2],
-        'summary' => trim(strip_tags($function_match[3])),
-        'documentation' => $function_match[3],
-        'code' => '');
-      api_save_documentation($docblock);
-    }
+  $function_matches = array();
+  preg_match_all('!^[a-zA-Z0-9_]+ ([a-zA-Z0-9_]+)\(.*<br />\n.*<br />$!m', $source, $function_matches, PREG_SET_ORDER);
+  foreach ($function_matches as $function_match) {
+    $docblock = array(
+      'object_name' => $function_match[1],
+      'branch_name' => 'php',
+      'object_type' => 'function',
+      'file_name' => $location,
+      'title' => $function_match[1],
+      'summary' => api_documentation_summary($function_match[0]),
+      'documentation' => $function_match[0],
+      'code' => '');
+    api_save_documentation($docblock);
   }
 }
 

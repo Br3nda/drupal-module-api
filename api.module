@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.7 2004/09/02 16:35:16 JonBob Exp $
+// $Id: api.module,v 1.8 2004/09/07 21:51:41 JonBob Exp $
 
 /**
  * @file
@@ -475,9 +475,11 @@ function api_page_admin() {
     drupal_set_message(t('All files have been tagged for reindexing. The index will be rebuilt during the next few runs of %cron.', array('%cron' => '<a href="cron.php">cron.php</a>')));
   }
 
-  if ($_POST['op'] == t('Parse manual pages')) {
-    variable_set('php_manual', $_POST['edit']['php_manual']);
-    api_parse_php_manual($_POST['edit']['php_manual']);
+  if ($_POST['op'] == t('Index PHP manual pages')) {
+    include_once('modules/api/parser.inc');
+    variable_set('api_php_funcsummary', $_POST['edit']['api_php_funcsummary']);
+    db_query("DELETE FROM {api_documentation} WHERE branch_name = 'php'");
+    api_parse_php_manual($_POST['edit']['api_php_funcsummary']);
     drupal_set_message(t('Manual pages scanned.'));
   }
 
@@ -506,8 +508,8 @@ function api_page_admin() {
   $output .= form($form);
 
   $output .= '<h3>'. t('PHP Manual') .'</h3>';
-  $form = form_textfield('', 'php_manual', variable_get('php_manual', ''), 40, 255, t('The directory containing the HTML pages of the PHP manual.'));
-  $form .= form_submit(t('Parse manual pages'));
+  $form = form_textfield('', 'api_php_funcsummary', variable_get('api_php_funcsummary', 'http://cvs.php.net/co.php/phpdoc/funcsummary.txt'), 60, 255, t('The URL of the PHP function summary document.'));
+  $form .= form_submit(t('Index PHP manual pages'));
   $output .= form($form);
 
   $output .= '<h3>'. t('Refresh index') .'</h3>';
@@ -540,7 +542,8 @@ function api_cron() {
       }
 
       if (filemtime($path) > $modified) {
-        print ('Parsing "'. $path .'"...<br />');
+        print('Parsing "'. $path .'"...<br />');
+        flush();
         api_parse_file($path, $branch->branch_name, $file_name);
 
         $files_scanned++;
@@ -605,7 +608,7 @@ function api_link_name($name, $branch_name) {
     return l($name, 'api/'. $branch_name .'/constant/'. $name, array('title' => $local_objects['constant'][$name], 'class' => 'local'));
   }
   else if (array_key_exists($name, $php_functions)) {
-    return '<a href="http://php.net/manual/en/function.'. str_replace('_', '-', $name) .'.php" title="'. $php_functions[$name] .'" class="php-manual">'. $name .'</a>';
+    return '<a href="http://php.net/'. $name .'" title="'. $php_functions[$name] .'" class="php-manual">'. $name .'</a>';
   }
   else {
     return $name;
