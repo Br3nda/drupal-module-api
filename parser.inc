@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.5 2005/03/29 01:24:35 JonBob Exp $
+// $Id: parser.inc,v 1.6 2005/04/03 15:20:30 weitzman Exp $
 
 /**
  * @file
@@ -459,7 +459,7 @@ function api_format_documentation($documentation, $branch_name) {
     return '';
   }
 
-  $documentation = drupal_specialchars($documentation);
+  $documentation = check_plain($documentation);
 
   // Process the @link tag.
   $documentation = preg_replace('!@link ([a-zA-Z0-9_]+\.[a-zA-Z0-9_]+) (.*?) @endlink!', l('$2', 'api/'. $branch_name .'/file/$1'), $documentation);
