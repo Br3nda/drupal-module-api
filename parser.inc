@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.4 2004/09/10 21:54:04 JonBob Exp $
+// $Id: parser.inc,v 1.5 2005/03/29 01:24:35 JonBob Exp $
 
 /**
  * @file
@@ -43,6 +43,11 @@ function api_parse_file($file_path, $branch_name, $file_name) {
     api_parse_text_file($file_path, $branch_name, $file_name);
     return TRUE;
   }
+  if (preg_match('!\.(htm|html)$!', $file_name)) {
+    print('Parsing "'. $file_path .'"...<br />');
+    api_parse_html_file($file_path, $branch_name, $file_name);
+    return TRUE;
+  }
   return FALSE;
 }
 
@@ -66,6 +71,61 @@ function api_parse_text_file($file_path, $branch_name, $file_name) {
       'summary' => api_documentation_summary(api_format_documentation($source, $branch_name)),
       'documentation' => api_format_documentation($source, $branch_name),
       'code' => api_format_php($source));
+  $docblocks[0]['version'] = '';
+  $version_match = array();
+  if (preg_match('!\$'.'Id: .*?,v (.*?) (.*?) (.*?) (.*?) Exp \$!', $source, $version_match)) {
+    $docblocks[0]['version'] = $version_match[1] .' (checked in on '. $version_match[2] .' at '. $version_match[3] .' by '. $version_match[4] .')';
+  }
+  $docblocks[0]['modified'] = filemtime($file_path);
+
+  $old_dids = array();
+  $result = db_query("SELECT did FROM {api_documentation} WHERE branch_name = '%s' AND file_name = '%s'", $branch_name, $file_name);
+  while ($object = db_fetch_object($result)) {
+    $old_dids[] = $object->did;
+  }
+
+  $dids = array();
+  foreach ($docblocks as $docblock) {
+    $dids[] = api_save_documentation($docblock);
+  }
+  $old_dids = array_diff($old_dids, $dids);
+  if (count($old_dids) > 0) {
+    $old_dids = implode(',', $old_dids);
+    db_query('DELETE FROM {api_documentation} WHERE did IN (%s)', $old_dids);
+    db_query('DELETE FROM {api_file} WHERE did IN (%s)', $old_dids);
+    db_query('DELETE FROM {api_function} WHERE did IN (%s)', $old_dids);
+    db_query('DELETE FROM {api_reference} WHERE from_did IN (%s) OR to_did IN (%s)', $old_dids, $old_dids);
+  }
+}
+
+/**
+ * Read in the file at the given path and parse it as an HTML file.
+ */
+function api_parse_html_file($file_path, $branch_name, $file_name) {
+  $source = file_get_contents($file_path);
+
+  $docblocks = array();
+
+  // Set up documentation block for file, in case it is not explicitly defined.
+  $docblocks[0] = array(
+      'object_name' => $file_name,
+      'branch_name' => $branch_name,
+      'object_type' => 'file',
+      'file_name' => $file_name,
+      'title' => strpos($file_name, '/') ? substr($file_name, strrpos($file_name, '/') + 1) : $file_name,
+      'summary' => '',
+      'documentation' => '',
+      'code' => '<pre>'. htmlentities($source) .'</pre>');
+  $title_match = array();
+  if (preg_match('!<title>(.*)</title>!is', $source, $title_match)) {
+    $docblocks[0]['title'] = $title_match[1];
+  }
+  $documentation_match = array();
+  if (preg_match('!<body>(.*?</h1>)?(.*)</body>!is', $source, $documentation_match)) {
+    $docblocks[0]['documentation'] = $documentation_match[2];
+    $docblocks[0]['summary'] = api_documentation_summary($documentation_match[2]);
+  }
+  
   $docblocks[0]['version'] = '';
   $version_match = array();
   if (preg_match('!\$'.'Id: .*?,v (.*?) (.*?) (.*?) (.*?) Exp \$!', $source, $version_match)) {

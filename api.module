@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.10 2004/09/16 14:41:33 JonBob Exp $
+// $Id: api.module,v 1.11 2005/03/29 01:24:35 JonBob Exp $
 
 /**
  * @file
@@ -46,6 +46,10 @@ function api_menu($may_cache) {
       $items[] = array('path' => 'api/'. $branch->branch_name, 'title' => $branch->title,
         'callback' => 'api_page_branch', 'access' => $access,
         'callback arguments' => array($branch->branch_name));
+      $items[] = array('path' => 'api/'. $branch->branch_name .'/function_dump', 'title' => t('functions'),
+        'callback' => 'api_page_function_dump', 'access' => $access,
+        'callback arguments' => array($branch->branch_name),
+        'type' => MENU_CALLBACK);
       $items[] = array('path' => 'api/'. $branch->branch_name .'/function', 'title' => t('functions'),
         'callback' => 'api_page_listing', 'access' => $access,
         'callback arguments' => array($branch->branch_name, 'function'));
@@ -169,6 +173,17 @@ function api_page_listing($branch_name, $object_type) {
 }
 
 /**
+ * Menu callback; produces a textual listing of all functions for use in IDEs.
+ */
+function api_page_function_dump($branch_name) {
+  $result = db_query("SELECT d.title, d.summary, f.signature FROM {api_documentation} d INNER JOIN {api_function} f ON d.did = f.did WHERE d.branch_name = '%s' AND d.object_type = 'function'", $branch_name);
+  while ($object = db_fetch_object($result)) {
+    print($object->signature);
+    print(' ### '. $object->summary ."\n");
+  }
+}
+
+/**
  * Menu callback; displays documentation for a function.
  */
 function api_page_function($branch_name, $object_name) {
@@ -215,7 +230,8 @@ function api_page_function($branch_name, $object_name) {
       $output .= api_link_code($function->code, $branch_name);
     }
 
-    print theme('page', $output, $function->title);
+    drupal_set_title($function->title);
+    print theme('page', $output);
   }
   else {
     drupal_not_found();
@@ -273,7 +289,8 @@ function api_page_function_references($branch_name, $object_name) {
       $output .= theme('table', $headers, $rows);
     }
 
-    print theme('page', $output, $function->title);
+    drupal_set_title($function->title);
+    print theme('page', $output);
   }
   else {
     drupal_not_found();
@@ -316,7 +333,8 @@ function api_page_constant($branch_name, $object_name) {
       $output .= api_link_code($constant->code, $branch_name);
     }
 
-    print theme('page', $output, $constant->title);
+    drupal_set_title($constant->title);
+    print theme('page', $output);
   }
   else {
     drupal_not_found();
@@ -369,7 +387,8 @@ function api_page_file($branch_name, $object_name) {
       $output .= theme('table', $headers, $rows);
     }
 
-    print theme('page', $output, $file->title);
+    drupal_set_title($file->title);
+    print theme('page', $output);
   }
   else {
     drupal_not_found();
@@ -384,7 +403,8 @@ function api_page_file_source($branch_name, $object_name) {
 
   $result = db_query("SELECT title, code FROM {api_documentation} WHERE object_name = '%s' AND branch_name = '%s' AND object_type = 'file'", $object_name, $branch_name);
   if ($file = db_fetch_object($result)) {
-    print theme('page', api_link_code($file->code, $branch_name), $file->title);
+    drupal_set_title($file->title);
+    print theme('page', api_link_code($file->code, $branch_name));
   }
   else {
     drupal_not_found();
@@ -433,7 +453,8 @@ function api_page_group($branch_name, $object_name) {
       $output .= theme('table', $headers, $rows);
     }
 
-    print theme('page', $output, $group->title);
+    drupal_set_title($group->title);
+    print theme('page', $output);
   }
   else {
     drupal_not_found();
@@ -593,9 +614,9 @@ function api_link_name($name, $branch_name) {
   static $php_functions = array();
 
   if (count($local_objects) == 0) {
-    $result = db_query("SELECT object_name, object_type, summary FROM {api_documentation} WHERE branch_name = '%s'", $branch_name);
+    $result = db_query("SELECT object_name, title, object_type, summary FROM {api_documentation} WHERE branch_name = '%s'", $branch_name);
     while ($object = db_fetch_object($result)) {
-      $local_objects[$object->object_type][$object->object_name] = $object->summary;
+      $local_objects[$object->object_type][$object->title] = $object;
     }
   }
 
@@ -607,13 +628,13 @@ function api_link_name($name, $branch_name) {
   }
 
   if (array_key_exists($name, $local_objects['function'])) {
-    return l($name, 'api/'. $branch_name .'/function/'. $name, array('title' => $local_objects['function'][$name], 'class' => 'local'));
+    return l($name, 'api/'. $branch_name .'/function/'. $local_objects['function'][$name]->object_name, array('title' => $local_objects['function'][$name]->summary, 'class' => 'local'));
   }
   else if (array_key_exists($name, $local_objects['file'])) {
-    return l($name, 'api/'. $branch_name .'/file/'. $name, array('title' => $local_objects['function'][$name], 'class' => 'local'));
+    return l($name, 'api/'. $branch_name .'/file/'. $local_objects['file'][$name]->object_name, array('title' => $local_objects['file'][$name]->summary, 'class' => 'local'));
   }
   else if (array_key_exists($name, $local_objects['constant'])) {
-    return l($name, 'api/'. $branch_name .'/constant/'. $name, array('title' => $local_objects['constant'][$name], 'class' => 'local'));
+    return l($name, 'api/'. $branch_name .'/constant/'. $local_objects['constant'][$name]->object_name, array('title' => $local_objects['constant'][$name]->summary, 'class' => 'local'));
   }
   else if (array_key_exists($name, $php_functions)) {
     return '<a href="http://php.net/'. $name .'" title="'. $php_functions[$name] .'" class="php-manual">'. $name .'</a>';
