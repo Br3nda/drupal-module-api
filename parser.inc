@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.1 2004/09/02 16:35:16 JonBob Exp $
+// $Id: parser.inc,v 1.2 2004/09/03 19:29:50 JonBob Exp $
 
 /**
  * @file
@@ -11,11 +11,11 @@
  */
 function api_parse_php_manual($directory) {
   $files = file_scan_directory($directory, 'ref.(.*).html');
-  
+
   foreach ($files as $path => $file) {
     $file_name = substr($path, strrpos($path, '/') + 1);
     $source = file_get_contents($path);
-    
+
     $function_matches = array();
     preg_match_all('!<DT\n><A\nHREF="function.([a-zA-Z0-9-]+).html"\n>([a-zA-Z0-9_]+)</A
 >&nbsp;--&nbsp;(.*?)</DT\n>!s', $source, $function_matches, PREG_SET_ORDER);
@@ -350,24 +350,65 @@ function api_format_documentation($documentation, $branch_name) {
   // Remove any leftover Doxygen formatting statements.
   $documentation = preg_replace('!@[a-zA-Z0-9_}{]+!', '', $documentation);
 
+  $documentation = api_format_documentation_lists($documentation);
+
   // Convert newlines into paragraphs.
   $documentation = preg_replace('!(.*?)(\n\n|$)!s', "\n<p>\n".'$1'."\n</p>\n", $documentation);
-
-  // Find bulleted lists.
-  $documentation = preg_replace('!\n( *)- !e', 'api_format_documentation_bullet(\'$1\')', $documentation);
 
   return $documentation;
 }
 
 /**
- * Replacement pattern for poor-man's bulleted list code.
+ * Parse a block of text for lists that use hyphens as bullets, and format them
+ * as proper HTML lists.
  */
-function api_format_documentation_bullet($whitespace) {
-  $output = "\n<br />";
-  for ($i = 0; $i < strlen($whitespace); $i++) {
-    $output .= '&nbsp;';
+function api_format_documentation_lists($documentation) {
+  $lines = explode("\n", $documentation);
+  $output = '';
+  $bullet_indents = array(-1);
+
+  foreach ($lines as $line) {
+    $matches = array();
+    preg_match('!^( *)(- *)?(.*)$!', $line, $matches);
+    $indent = strlen($matches[1]);
+    $bullet_exists = $matches[2];
+
+    if ($indent < $bullet_indents[0]) {
+      // First close off any lists that have completed.
+      while ($indent < $bullet_indents[0]) {
+        array_shift($bullet_indents);
+        $output .= '</li></ul>';
+      }
+    }
+
+    if ($indent == $bullet_indents[0]) {
+      if ($bullet_exists) {
+        // A new bullet at the same indent means a new list item.
+        $output .= '</li><li>';
+      }
+      else {
+        // If the indent is the same, but there is no bullet, that also
+        // signifies the end of the list.
+        array_shift($bullet_indents);
+        $output .= '</li></ul>';
+      }
+    }
+
+    if ($indent > $bullet_indents[0] && $bullet_exists) {
+      // A new list at a lower level.
+      array_unshift($bullet_indents, $indent);
+      $output .= '<ul><li>';
+    }
+
+    $output .= $matches[3] ."\n";
   }
-  $output .= '&#x2022; ';
+
+  // Clean up any unclosed lists.
+  array_pop($bullet_indents);
+  foreach ($bullet_indents as $indent) {
+    $output .= '</li></ul>';
+  }
+
   return $output;
 }
 
@@ -379,7 +420,14 @@ function api_documentation_summary($documentation) {
   if ($pos !== FALSE) {
     $documentation = substr($documentation, 0, $pos);
   }
-  return substr(trim(strip_tags($documentation)), 0, 255);
+  $documentation = trim(htmlentities(strip_tags($documentation)));
+
+  if (strlen($documentation) > 255) {
+    return substr($documentation, 0, strrpos(substr($documentation, 0, 252), ' ')) .'...';
+  }
+  else {
+    return $documentation;
+  }
 }
 
 /**
