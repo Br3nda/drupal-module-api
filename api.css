@@ -1,4 +1,4 @@
-/* $Id: api.css,v 1.1 2004/08/27 20:41:45 JonBob Exp $ */
+/* $Id: api.css,v 1.2 2004/09/02 13:23:51 JonBob Exp $ */
 
 .php {
   font-family: monospace;
@@ -10,6 +10,16 @@
 
 .php .php-function {
   color: #00a;
+}
+
+.php .php-function a.local {
+  color: #00a;
+  font-weight: bold;
+}
+
+.php .php-function a.php-manual {
+  color: #048;
+  font-weight: bold;
 }
 
 .php .php-variable {
@@ -25,5 +35,5 @@
 }
 
 .php .php-keyword {
-  color: #066;
+  color: #060;
 }

@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.5 2004/08/30 15:37:09 JonBob Exp $
+// $Id: api.module,v 1.6 2004/09/02 13:23:51 JonBob Exp $
 
 /**
  * @file
@@ -54,6 +54,12 @@ function api_menu() {
           'callback' => 'api_page_function', 'access' => $access,
           'callback arguments' => array($branch->branch_name, arg(3)),
           'type' => MENU_CALLBACK);
+        $items[] = array('path' => 'api/'. $branch->branch_name .'/function/'. arg(3) .'/documentation', 'title' => t('view documentation'),
+          'type' => MENU_DEFAULT_LOCAL_TASK, 'weight' => -10);
+        $items[] = array('path' => 'api/'. $branch->branch_name .'/function/'. arg(3) .'/references', 'title' => t('list references'),
+          'callback' => 'api_page_function_references', 'access' => $access,
+          'callback arguments' => array($branch->branch_name, arg(3)),
+          'type' => MENU_LOCAL_TASK);
       }
 
       $items[] = array('path' => 'api/'. $branch->branch_name .'/file', 'title' => t('files'),
@@ -65,7 +71,7 @@ function api_menu() {
           'callback arguments' => array($branch->branch_name, arg(3)),
           'type' => MENU_CALLBACK);
         $items[] = array('path' => 'api/'. $branch->branch_name .'/file/'. arg(3) .'/documentation', 'title' => t('view documentation'),
-          'type' => MENU_DEFAULT_LOCAL_TASK);
+          'type' => MENU_DEFAULT_LOCAL_TASK, 'weight' => -10);
         $items[] = array('path' => 'api/'. $branch->branch_name .'/file/'. arg(3) .'/source', 'title' => t('view source'),
           'callback' => 'api_page_file_source', 'access' => $access,
           'callback arguments' => array($branch->branch_name, arg(3)),
@@ -142,7 +148,7 @@ function api_page_function_list($branch_name) {
  */
 function api_page_function($branch_name, $object_name) {
   drupal_set_html_head('<style type="text/css">@import url(modules/api/api.css);</style>');
-  
+
   $result = db_query("SELECT d.did, d.title, d.file_name, d.documentation, d.code, f.signature, f.start_line, f.parameters, f.return FROM {api_documentation} d INNER JOIN {api_function} f ON d.did = f.did WHERE d.object_name = '%s' AND d.branch_name = '%s' AND d.object_type = 'function'", $object_name, $branch_name);
   if ($function = db_fetch_object($result)) {
     $output = '';
@@ -168,7 +174,7 @@ function api_page_function($branch_name, $object_name) {
 
     $headers = array(array('data' => t('Name'), 'field' => 'd.title'), t('Description'));
     $rows = array();
-    $result = db_query("SELECT d.object_name, d.title, d.summary FROM {api_membership} m INNER JOIN {api_documentation} d ON m.owner_did = d.did AND d.object_type = 'group' WHERE m.member_did = %d". tablesort_sql($headers), $function->did);
+    $result = db_query("SELECT d.object_name, d.title, d.summary FROM {api_reference} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'group' WHERE r.from_did = %d". tablesort_sql($headers), $function->did);
     while ($group = db_fetch_object($result)) {
       $rows[] = array(
         l($group->title, 'api/'. $branch_name .'/group/'. $group->object_name),
@@ -182,6 +188,65 @@ function api_page_function($branch_name, $object_name) {
     if (!empty($function->code)) {
       $output .= '<h3>'. t('Code') .'</h3>';
       $output .= api_link_code($function->code, $branch_name);
+    }
+
+    print theme('page', $output, $function->title);
+  }
+  else {
+    drupal_not_found();
+  }
+}
+
+
+/**
+ * Menu callback; displays all functions that reference another function.
+ */
+function api_page_function_references($branch_name, $object_name) {
+  drupal_set_html_head('<style type="text/css">@import url(modules/api/api.css);</style>');
+
+  $result = db_query("SELECT d.did, d.title FROM {api_documentation} d WHERE d.object_name = '%s' AND d.branch_name = '%s' AND d.object_type = 'function'", $object_name, $branch_name);
+  if ($function = db_fetch_object($result)) {
+    $output = '';
+
+    $headers = array(array('data' => t('Name'), 'field' => 'd.title'), t('Description'));
+    $rows = array();
+    $result = db_query("SELECT d.object_name, d.title, d.summary FROM {api_reference} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'group' WHERE r.from_did = %d". tablesort_sql($headers), $function->did);
+    while ($group = db_fetch_object($result)) {
+      $rows[] = array(
+        l($group->title, 'api/'. $branch_name .'/group/'. $group->object_name),
+        api_link_documentation($group->summary, $branch_name));
+    }
+    if (count($rows) > 0) {
+      $output .= '<h3>'. t('Related topics') .'</h3>';
+      $output .= theme('table', $headers, $rows);
+    }
+
+    $headers = array(array('data' => t('Name'), 'field' => 'd.title'), array('data' => t('Location'), 'field' => 'd.file_name'), t('Description'));
+    $rows = array();
+    $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name FROM {api_reference} r INNER JOIN {api_documentation} d ON r.from_did = d.did AND d.object_type = 'function' WHERE r.to_did = %d". tablesort_sql($headers), $function->did);
+    while ($reference = db_fetch_object($result)) {
+      $rows[] = array(
+        l($reference->title, 'api/'. $branch_name .'/function/'. $reference->object_name),
+        l($reference->file_name, 'api/'. $branch_name .'/file/'. $reference->file_name),
+        api_link_documentation($reference->summary, $branch_name));
+    }
+    if (count($rows) > 0) {
+      $output .= '<h3>'. t('Functions that call %name()', array('%name' => $function->title)) .'</h3>';
+      $output .= theme('table', $headers, $rows);
+    }
+
+    $headers = array(array('data' => t('Name'), 'field' => 'd.title'), array('data' => t('Location'), 'field' => 'd.file_name'), t('Description'));
+    $rows = array();
+    $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name FROM {api_reference} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'function' WHERE r.from_did = %d". tablesort_sql($headers), $function->did);
+    while ($reference = db_fetch_object($result)) {
+      $rows[] = array(
+        l($reference->title, 'api/'. $branch_name .'/function/'. $reference->object_name),
+        l($reference->file_name, 'api/'. $branch_name .'/file/'. $reference->file_name),
+        api_link_documentation($reference->summary, $branch_name));
+    }
+    if (count($rows) > 0) {
+      $output .= '<h3>'. t('Functions called by %name()', array('%name' => $function->title)) .'</h3>';
+      $output .= theme('table', $headers, $rows);
     }
 
     print theme('page', $output, $function->title);
@@ -214,7 +279,7 @@ function api_page_file_list($branch_name) {
  */
 function api_page_file($branch_name, $object_name) {
   drupal_set_html_head('<style type="text/css">@import url(modules/api/api.css);</style>');
-  
+
   $result = db_query("SELECT d.did, d.title, d.documentation, f.version FROM {api_documentation} d INNER JOIN {api_file} f ON d.did = f.did WHERE object_name = '%s' AND branch_name = '%s' AND object_type = 'file'", $object_name, $branch_name);
   if ($file = db_fetch_object($result)) {
     $output = '';
@@ -254,7 +319,7 @@ function api_page_file($branch_name, $object_name) {
  */
 function api_page_file_source($branch_name, $object_name) {
   drupal_set_html_head('<style type="text/css">@import url(modules/api/api.css);</style>');
-  
+
   $result = db_query("SELECT title, code FROM {api_documentation} WHERE object_name = '%s' AND branch_name = '%s' AND object_type = 'file'", $object_name, $branch_name);
   if ($file = db_fetch_object($result)) {
     print theme('page', api_link_code($file->code, $branch_name), $file->title);
@@ -288,7 +353,7 @@ function api_page_group_list($branch_name) {
  */
 function api_page_group($branch_name, $object_name) {
   drupal_set_html_head('<style type="text/css">@import url(modules/api/api.css);</style>');
-  
+
   $result = db_query("SELECT did, title, documentation FROM {api_documentation} WHERE object_name = '%s' AND branch_name = '%s' AND object_type = 'group'", $object_name, $branch_name);
   if ($group = db_fetch_object($result)) {
     $output = '';
@@ -299,7 +364,7 @@ function api_page_group($branch_name, $object_name) {
 
     $headers = array(array('data' => t('Name'), 'field' => 'd.title'), array('data' => t('Location'), 'field' => 'd.file_name'), t('Description'));
     $rows = array();
-    $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name FROM {api_membership} m INNER JOIN {api_documentation} d ON m.member_did = d.did AND d.object_type = 'function' WHERE m.owner_did = %d". tablesort_sql($headers), $group->did);
+    $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name FROM {api_reference} r INNER JOIN {api_documentation} d ON r.from_did = d.did AND d.object_type = 'function' WHERE r.to_did = %d". tablesort_sql($headers), $group->did);
     while ($function = db_fetch_object($result)) {
       $rows[] = array(
         l($function->title, 'api/'. $branch_name .'/function/'. $function->object_name),
@@ -339,7 +404,7 @@ function api_page_admin() {
             db_query('DELETE FROM {api_documentation} WHERE did = %d', $object->did);
             db_query('DELETE FROM {api_file} WHERE did = %d', $object->did);
             db_query('DELETE FROM {api_function} WHERE did = %d', $object->did);
-            db_query('DELETE FROM {api_membership} WHERE member_did = %d OR owner_did = %d', $object->did, $object->did);
+            db_query('DELETE FROM {api_reference} WHERE from_did = %d OR to_did = %d', $object->did, $object->did);
           }
         }
         else {
@@ -356,9 +421,15 @@ function api_page_admin() {
     db_query("DELETE FROM {api_documentation}");
     db_query("DELETE FROM {api_file}");
     db_query("DELETE FROM {api_function}");
-    db_query("DELETE FROM {api_membership}");
+    db_query("DELETE FROM {api_reference}");
 
     drupal_set_message(t('Index cleared. It will be rebuilt during the next few runs of %cron.', array('%cron' => '<a href="cron.php">cron.php</a>')));
+  }
+
+  if ($_POST['op'] == t('Parse manual pages')) {
+    variable_set('php_manual', $_POST['edit']['php_manual']);
+    api_parse_php_manual($_POST['edit']['php_manual']);
+    drupal_set_message(t('Manual pages scanned.'));
   }
 
   $output = '';
@@ -372,17 +443,22 @@ function api_page_admin() {
     $rows[] = array(
       form_textfield('', $branch->branch_name. '][branch_name', $branch->branch_name, 10, 63),
       form_textfield('', $branch->branch_name. '][title', $branch->title, 20, 255),
-      form_textfield('', $branch->branch_name. '][directory', $branch->directory, 20, 255));
+      form_textfield('', $branch->branch_name. '][directory', $branch->directory, 30, 255));
   }
   $branch_name_field = form_textfield('', 'new][branch_name', '', 10, 63);
   $title_field = form_textfield('', 'new][title', '', 20, 255);
-  $directory_field = form_textfield('', 'new][directory', '', 20, 255);
+  $directory_field = form_textfield('', 'new][directory', '', 30, 255);
   $rows[] = array($branch_name_field, $title_field, $directory_field);
 
   $form .= theme('table', $headers, $rows);
   $form .= form_submit(t('Save changes'));
 
   $output .= '<h3>'. t('Branches to index'). '</h3>';
+  $output .= form($form);
+
+  $output .= '<h3>'. t('PHP Manual') .'</h3>';
+  $form = form_textfield('', 'php_manual', variable_get('php_manual', ''), 40, 255, t('The directory containing the HTML pages of the PHP manual.'));
+  $form .= form_submit(t('Parse manual pages'));
   $output .= form($form);
 
   $output .= '<h3>'. t('Clear index') .'</h3>';
@@ -398,7 +474,7 @@ function api_page_admin() {
  */
 function api_cron() {
   $files_scanned = 0;
-  
+
   $branches = db_query('SELECT branch_name, directory FROM {api_branch}');
   while ($branch = db_fetch_object($branches)) {
     $files = file_scan_directory($branch->directory, 'module|inc|php|theme');
@@ -414,7 +490,7 @@ function api_cron() {
 
       if (filemtime($path) > $modified) {
         api_parse_file($path, $branch->branch_name, $file_name);
-        
+
         $files_scanned++;
         if ($files_scanned >= variable_get('api_files_per_cron', 10)) {
           break;
@@ -422,9 +498,37 @@ function api_cron() {
       }
     }
   }
+
+  // Ensure that reference updates persist until the next cron run.
+  api_reference('save');
+}
+
+/**
+ * Parse out function definitions from the PHP manual.
+ */
+function api_parse_php_manual($directory) {
+  $files = file_scan_directory($directory, 'ref.(.*).html');
   
-  // Ensure that membership updates persist until the next cron run.
-  api_membership('save');
+  foreach ($files as $path => $file) {
+    $file_name = substr($path, strrpos($path, '/') + 1);
+    $source = file_get_contents($path);
+    
+    $function_matches = array();
+    preg_match_all('!<DT\n><A\nHREF="function.([a-zA-Z0-9-]+).html"\n>([a-zA-Z0-9_]+)</A
+>&nbsp;--&nbsp;(.*?)</DT\n>!s', $source, $function_matches, PREG_SET_ORDER);
+    foreach ($function_matches as $function_match) {
+      $docblock = array(
+        'object_name' => $function_match[2],
+        'branch_name' => 'php',
+        'object_type' => 'function',
+        'file_name' => $file_name,
+        'title' => $function_match[2],
+        'summary' => trim(strip_tags($function_match[3])),
+        'documentation' => $function_match[3],
+        'code' => '');
+      api_save_documentation($docblock);
+    }
+  }
 }
 
 /**
@@ -435,7 +539,7 @@ function api_parse_file($file_path, $branch_name, $file_name) {
 
   $docblock_matches = array();
   $docblocks = array();
-  
+
   // Set up documentation block for file, in case it is not explicitly defined.
   $docblocks[0] = array(
       'object_name' => $file_name,
@@ -510,6 +614,14 @@ function api_parse_file($file_path, $branch_name, $file_name) {
       }
       $docblock['return'] = api_format_documentation($docblock['return'], $branch_name);
 
+      // Find referenced functions.
+      $function_call_matches = array();
+      $docblock['function calls'] = array();
+      preg_match_all('!<span class="php-function">([a-zA-Z0-9_]+)</span>\(!', substr($docblock['code'], strlen('<div class="php"><span class="php-keyword">function</span> <span class="php-function">')), $function_call_matches, PREG_SET_ORDER);
+      foreach($function_call_matches as $function_call_match) {
+        $docblock['function calls'][$function_call_match[1]] = $function_call_match[1];
+      }
+
       // Determine group membership.
       $group_matches = array();
       preg_match_all('!@(ingroup|addtogroup) ([a-zA-Z0-9_]+)!', $docblock['content'], $group_matches);
@@ -543,7 +655,7 @@ function api_parse_file($file_path, $branch_name, $file_name) {
       $docblock['content'] = preg_replace('!@defgroup.*?\n!', '', $docblock['content']);
       $docblock['object_type'] = 'group';
     }
-    
+
     // Handle nested function groups.
     if (strpos($docblock['content'], '@{') !== FALSE) {
       if ($docblock['object_type'] == 'group') {
@@ -603,7 +715,7 @@ function api_parse_file($file_path, $branch_name, $file_name) {
   while ($object = db_fetch_object($result)) {
     $old_dids[] = $object->did;
   }
-  
+
   $dids = array();
   foreach ($docblocks as $docblock) {
     $dids[] = api_save_documentation($docblock);
@@ -614,7 +726,7 @@ function api_parse_file($file_path, $branch_name, $file_name) {
     db_query('DELETE FROM {api_documentation} WHERE did IN (%s)', $old_dids);
     db_query('DELETE FROM {api_file} WHERE did IN (%s)', $old_dids);
     db_query('DELETE FROM {api_function} WHERE did IN (%s)', $old_dids);
-    db_query('DELETE FROM {api_membership} WHERE member_did IN (%s) OR owner_did IN (%s)', $old_dids, $old_dids);
+    db_query('DELETE FROM {api_reference} WHERE from_did IN (%s) OR to_did IN (%s)', $old_dids, $old_dids);
   }
 }
 
@@ -644,17 +756,22 @@ function api_save_documentation(&$docblock) {
 
       if (is_array($docblock['groups'])) {
         foreach ($docblock['groups'] as $group_name) {
-          api_membership('set', $docblock['branch_name'], 'group', $group_name, array($did));
+          api_reference('set', $docblock['branch_name'], 'group', $group_name, $did);
+        }
+      }
+      if (is_array($docblock['function calls'])) {
+        foreach ($docblock['function calls'] as $function_name) {
+          api_reference('set', $docblock['branch_name'], 'function', $function_name, $did);
         }
       }
       break;
-      
+
     case 'file':
       db_query('DELETE FROM {api_file} WHERE did = %d', $did);
       db_query("INSERT INTO {api_file} (did, modified, version) VALUES (%d, %d, '%s')", $did, $docblock['modified'], $docblock['version']);
       break;
   }
-  
+
   return $did;
 }
 
@@ -672,7 +789,7 @@ function api_link_code($code, $branch_name) {
  */
 function api_link_documentation($documentation, $branch_name) {
   $documentation = preg_replace('!([a-zA-Z0-9_]+)(\()!e', 'api_link_function_name("$1", "'. $branch_name .'") ."$2"', $documentation);
-  $documentation = preg_replace('![a-zA-Z0-9_]+\.[a-zA-Z0-9_]+!e', 'api_link_file_name("$0", "'. $branch_name .'")', $documentation);
+  $documentation = preg_replace('%(?<!")[a-zA-Z0-9_]+\.[a-zA-Z0-9_]+(?!")%e', 'api_link_file_name("$0", "'. $branch_name .'")', $documentation);
 
   return $documentation;
 }
@@ -682,6 +799,7 @@ function api_link_documentation($documentation, $branch_name) {
  */
 function api_link_function_name($name, $branch_name) {
   static $local_functions = array();
+  static $php_functions = array();
 
   if (count($local_functions) == 0) {
     $result = db_query("SELECT object_name, summary FROM {api_documentation} WHERE branch_name = '%s' AND object_type = 'function'", $branch_name);
@@ -690,11 +808,21 @@ function api_link_function_name($name, $branch_name) {
     }
   }
 
+  if (count($php_functions) == 0) {
+    $result = db_query("SELECT object_name, summary FROM {api_documentation} WHERE branch_name = 'php' AND object_type = 'function'");
+    while ($function = db_fetch_object($result)) {
+      $php_functions[$function->object_name] = $function->summary;
+    }
+  }
+
   if (array_key_exists($name, $local_functions)) {
-    return l($name, 'api/'. $branch_name .'/function/'. $name, array('title' => $local_functions[$name]));
+    return l($name, 'api/'. $branch_name .'/function/'. $name, array('title' => $local_functions[$name], 'class' => 'local'));
+  }
+  else  if (array_key_exists($name, $php_functions)) {
+    return '<a href="http://php.net/manual/en/function.'. str_replace('_', '-', $name) .'.php" title="'. $php_functions[$name] .'" class="php-manual">'. $name .'</a>';
   }
   else {
-    return '<a href="http://php.net/manual-lookup.php?pattern='. $name .'">'. $name .'</a>';
+    return $name;
   }
 }
 
@@ -783,11 +911,11 @@ function api_format_php($code) {
   if (!defined('T_DOC_COMMENT')) {
     define('T_DOC_COMMENT', T_COMMENT);
   }
-  
+
   $tokens = token_get_all($code);
-  
+
   $in_string = FALSE;
-  
+
   foreach($tokens as $token) {
     if ($in_string) {
       if ($token == '"') {
@@ -804,27 +932,27 @@ function api_format_php($code) {
       $in_string = TRUE;
       continue;
     }
-    
+
     if (is_array($token)) {
       $type = $token[0];
       $value = htmlentities($token[1]);
-      
+
       switch ($type) {
         // Discarded strings:
         case T_OPEN_TAG:
         case T_CLOSE_TAG:
           break;
-                
+
         case T_COMMENT:
         case T_ML_COMMENT:
         case T_DOC_COMMENT:
           $output .= '<span class="php-comment">'. $value .'</span>';
           break;
-        
+
         case T_VARIABLE:
           $output .= '<span class="php-variable">'. $value .'</span>';
           break;
-        
+
         case T_CONSTANT_ENCAPSED_STRING:
         case T_INLINE_HTML:
           $output .= '<span class="php-string">'. $value .'</span>';
@@ -833,7 +961,7 @@ function api_format_php($code) {
         case T_STRING:
           $output .= '<span class="php-function">'. $value .'</span>';
           break;
-        
+
         case T_LNUMBER:
         case T_DNUMBER:
           $output .= '<span class="php-constant">'. $value .'</span>';
@@ -854,7 +982,7 @@ function api_format_php($code) {
         case T_USE: case T_VAR: case T_WHILE:
           $output .= '<span class="php-keyword">'. $value .'</span>';
           break;
-        
+
         default:
           $output .= $value;
       }
@@ -863,7 +991,7 @@ function api_format_php($code) {
       $output .= $token;
     }
   }
-  
+
   // Manage whitespace:
   $output = preg_replace('!([\n ]+)!se', 'api_format_php_whitespace(\'$1\')', $output);
   return '<div class="php">'. $output .'</div>';
@@ -898,7 +1026,7 @@ function api_format_php_whitespace($whitespace) {
   if ($breakingspace) {
     $output .= ' ';
   }
-  
+
   return $output;
 }
 
@@ -906,38 +1034,36 @@ function api_format_php_whitespace($whitespace) {
  * Since we may parse a file containing a reference before we have parsed the
  * file containing the referenced object, we manage all references internally
  * in an array and store the array in a Drupal persistent variable. Then we can
- * save the references to the membership table when the referenced object has
+ * save the references to the database table when the referenced object has
  * been parsed.
  */
-function api_membership($op, $branch_name = '', $owner_type = '', $owner_name = '', $member_names = array()) {
-  static $membership = NULL;
+function api_reference($op, $branch_name = '', $to_type = '', $to_name = '', $from_did = 0) {
+  static $reference = NULL;
 
-  if ($membership == NULL) {
-    $membership = variable_get('api_membership', array());
+  if ($reference == NULL) {
+    $reference = variable_get('api_reference', array());
   }
-  
+
   switch ($op) {
     case 'save':
-      foreach (array_keys($membership) as $key) {
-        list($branch_name, $owner_type, $owner_name) = unserialize($key);
-        if ($owner_did = db_result(db_query("SELECT did FROM {api_documentation} WHERE object_name = '%s' AND branch_name = '%s' AND object_type = '%s'", $owner_name, $branch_name, $owner_type))) {
-          foreach ($membership[$key] as $member_did) {
-            db_query('REPLACE INTO {api_membership} (owner_did, member_did) VALUES (%d, %d)', $owner_did, $member_did);
+      foreach (array_keys($reference) as $key) {
+        list($branch_name, $to_type, $to_name) = unserialize($key);
+        if ($to_did = db_result(db_query("SELECT did FROM {api_documentation} WHERE object_name = '%s' AND branch_name = '%s' AND object_type = '%s'", $to_name, $branch_name, $to_type))) {
+          foreach ($reference[$key] as $from_did) {
+            db_query('REPLACE INTO {api_reference} (from_did, to_did) VALUES (%d, %d)', $from_did, $to_did);
           }
-          unset($membership[$key]);
+          unset($reference[$key]);
+        }
+        else if (db_result(db_query("SELECT COUNT(*) FROM {api_documentation} WHERE object_name = '%s' AND branch_name = 'php' AND object_type = '%s'", $to_name, $to_type))) {
+          unset($reference[$key]);
         }
       }
-      
-      variable_set('api_membership', $membership);
+
+      variable_set('api_reference', $reference);
       break;
     case 'set':
-      $key = serialize(array($branch_name, $owner_type, $owner_name));
-      if (array_key_exists($key, $membership)) {
-        $membership[$key] = array_merge($membership[$key], $member_names);
-      }
-      else {
-        $membership[$key] = $member_names;
-      }
+      $key = serialize(array($branch_name, $to_type, $to_name));
+      $reference[$key][] = $from_did;
       break;
   }
 }
@@ -947,13 +1073,14 @@ function api_membership($op, $branch_name = '', $owner_type = '', $owner_name = 
  */
 function api_search($keys) {
   $count = db_result(db_query("SELECT COUNT(*) FROM {api_documentation} d WHERE d.title LIKE '%%%s%%' OR d.documentation LIKE '%%%s%%'", $keys, $keys));
-  $result = db_query_range("SELECT d.title, d.object_name, d.branch_name, b.title AS branch_title, d.object_type FROM {api_documentation} d INNER JOIN {api_branch} b ON d.branch_name = b.branch_name WHERE d.title LIKE '%%%s%%' OR d.documentation LIKE '%%%s%%' ORDER BY (d.title LIKE '%%%s%%') DESC, d.branch_name, d.title", $keys, $keys, $keys, 0, 10);
-  
+  $result = db_query_range("SELECT d.title, d.object_name, d.branch_name, b.title AS branch_title, d.object_type, d.summary FROM {api_documentation} d INNER JOIN {api_branch} b ON d.branch_name = b.branch_name WHERE d.title LIKE '%%%s%%' OR d.documentation LIKE '%%%s%%' ORDER BY (d.title LIKE '%%%s%%') DESC, d.branch_name, d.title", $keys, $keys, $keys, 0, 10);
+
   $matches = array();
   while ($object = db_fetch_object($result)) {
     $match = array();
     $match['title'] = $object->title;
     $match['branch'] = $object->branch_title;
+    $match['summary'] = $object->summary;
     switch ($object->object_type) {
       case 'function':
         $match['link'] = url('api/'. $object->branch_name .'/function/'. $object->object_name);
@@ -987,10 +1114,14 @@ function api_search($keys) {
  * Implementation of hook_search_item().
  */
 function api_search_item($item) {
-    $output = ' <dt class="title"><a href="'. $item['link'] .'">'. $item['title'] .'</a></dt>';
-    $output .= ' <dd class="small">'. $item['type'] .' - '. $item['branch'] .'</dd>';
-    
-    return $output;
+  $output = '<dt class="title"><a href="'. $item['link'] .'">'. $item['title'] .'</a></dt>';
+  $output .= '<dd class="small">'. $item['type'] .' ('. $item['branch'] .')';
+  if (!empty($item['summary'])) {
+    $output .= ': '. $item['summary'];
+  }
+  $output .= '</dd>';
+
+  return $output;
 }
 
 ?>

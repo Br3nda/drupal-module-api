@@ -1,4 +1,4 @@
-# $Id: api.mysql,v 1.4 2004/08/30 15:37:09 JonBob Exp $
+# $Id: api.mysql,v 1.5 2004/09/02 13:23:51 JonBob Exp $
 
 #
 # Table structure for table `api_branch`
@@ -58,11 +58,11 @@ CREATE TABLE api_function (
 # --------------------------------------------------------
 
 #
-# Table structure for table `api_membership`
+# Table structure for table `api_reference`
 #
 
-CREATE TABLE api_membership (
-  owner_did int(10) unsigned NOT NULL default '0',
-  member_did int(10) unsigned NOT NULL default '0',
-  PRIMARY KEY  (owner_did,member_did)
+CREATE TABLE api_reference (
+  from_did int(10) unsigned NOT NULL default '0',
+  to_did int(10) unsigned NOT NULL default '0',
+  PRIMARY KEY  (from_did,to_did)
 ) TYPE=MyISAM;
