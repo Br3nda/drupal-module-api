@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.1 2004/08/19 20:26:15 JonBob Exp $
+// $Id: api.module,v 1.2 2004/08/20 14:25:06 JonBob Exp $
 
 /**
  * @file
@@ -207,9 +207,14 @@ function api_page_file_list($branch_id) {
  * Menu callback; displays documentation for a file.
  */
 function api_page_file($branch_id, $file_id) {
-  $result = db_query("SELECT documentation FROM {api_file} WHERE file_id = '%s' AND branch_id = '%s'", $file_id, $branch_id);
+  $result = db_query("SELECT documentation, version FROM {api_file} WHERE file_id = '%s' AND branch_id = '%s'", $file_id, $branch_id);
   if ($file = db_fetch_object($result)) {
     $output = '';
+
+    if (!empty($file->version)) {
+      $output .= '<h3>'. t('Version') .'</h3>';
+      $output .= '<p>'. $file->version .'</p>';
+    }
 
     if (!empty($file->documentation)) {
       $output .= '<h3>'. t('Description') .'</h3>';
@@ -404,6 +409,12 @@ function api_cron() {
 function api_parse_file($file_path, $branch_id, $file_id) {
   $source = file_get_contents($file_path);
   
+  $version = '';
+  $version_match = array();
+  if (preg_match('!\$Id: api.module,v 1.2 2004/08/20 14:25:06 JonBob Exp $!', $source, $version_match)) {
+    $version = $version_match[1] .' (checked in on '. $version_match[2] .' at '. $version_match[3] .' by '. $version_match[4] .')';
+  }
+  
   $docblock_matches = array();
   $docblocks = array();
   $nested_groups = array();
@@ -433,12 +444,13 @@ function api_parse_file($file_path, $branch_id, $file_id) {
       $docblock['start_line'] = substr_count(substr($source, 0, $code_start), "\n");
       
       // Find parameter definitions.
-      $param_matches = array();
+      $param_match = array();
+      $offset = 0;
       $docblock['parameters'] = '';
-      preg_match_all('!@param(.*?)(\n@|\n\n|$)!s', $docblock['content'], $param_matches, PREG_SET_ORDER);
-      foreach($param_matches as $param_match) {
-        $docblock['content'] = str_replace($param_match[0], '', $docblock['content']);
-        $docblock['parameters'] .= "\n\n". $param_match[1];
+      while (preg_match('!@param(.*?)(?=\n@|\n\n|$)!s', substr($docblock['content'], $offset), $param_match, PREG_OFFSET_CAPTURE)) {
+        $docblock['content'] = str_replace($param_match[0][0], '', $docblock['content']);
+        $docblock['parameters'] .= "\n\n". $param_match[1][0];
+        $offset = $param_match[0][1];
       }
       
       // Find return value definitions.
@@ -547,7 +559,7 @@ function api_parse_file($file_path, $branch_id, $file_id) {
       $documentation = api_format_documentation($docblock['content'], $branch_id);
     }
   }
-  db_query("INSERT INTO {api_file} (file_id, branch_id, modified, documentation, code) VALUES ('%s', '%s', %d, '%s', '%s')", $file_id, $branch_id, filemtime($file_path), $documentation, highlight_string($source, TRUE));
+  db_query("INSERT INTO {api_file} (file_id, branch_id, modified, version, documentation, code) VALUES ('%s', '%s', %d, '%s', '%s', '%s')", $file_id, $branch_id, filemtime($file_path), $version, $documentation, highlight_string($source, TRUE));
   
   foreach ($docblocks as $docblock) {
     if ($docblock['type'] == 'branch') {

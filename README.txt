@@ -1,0 +1,48 @@
+This is an implementation of a subset of the Doxygen documentation generator
+specification, tuned to produce output that best benefits the Drupal code base.
+It is designed to assume the code it documents follows Drupal coding conventions,
+and supports the following Doxygen constructs:
+  @mainpage
+  @file
+  @defgroup
+  @ingroup
+  @addtogroup (as a synonym of @ ingroup)
+  @param
+  @return
+  @link
+  @{
+  @}
+
+
+In addition to Doxygen syntax requirements, the following restrictions are made
+on the code format. These are all Drupal coding conventions.
+
+All documentation blocks must use the syntax:
+
+/**
+ * Documentation here.
+ */
+
+The leading spaces are required.
+
+When documenting a function, the documentation block must immediately precede the
+function it documents, with no intervening blank lines.
+
+There may be no intervening spaces between a function name and the left parenthesis
+that follows it.
+
+Functions must be closed by a right curly bracket in the first column. No lines
+inside a function may have a right curly bracket in the first column.
+
+
+Besides the Doxygen features that are supported, this module also provides the
+following features:
+
+CVS version numbers and dates are parsed from $Id: README.txt,v 1.1 2004/08/20 14:25:06 JonBob Exp $ tags and reported.
+
+Functions may be in multiple groups (Doxygen ignores all but the first group). This
+allows, for example, theme_menu_tree() to be marked as both "themeable" and part of
+the "menu system".
+
+Function calls that are to functions not found in the parsed source files are linked
+to the PHP manual.
