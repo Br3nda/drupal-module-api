@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.8 2004/09/07 21:51:41 JonBob Exp $
+// $Id: api.module,v 1.9 2004/09/10 21:54:04 JonBob Exp $
 
 /**
  * @file
@@ -75,16 +75,21 @@ function api_menu() {
       $items[] = array('path' => 'api/'. $branch->branch_name .'/file', 'title' => t('files'),
         'callback' => 'api_page_listing', 'access' => $access,
         'callback arguments' => array($branch->branch_name, 'file'));
-      if (is_string(arg(3))) {
-        $items[] = array('path' => 'api/'. $branch->branch_name .'/file/'. arg(3), 'title' => t('file'),
+      if (strpos($_GET['q'], 'api/'. $branch->branch_name .'/file/') !== FALSE) {
+        $matches = array();
+        preg_match('!(api/'. $branch->branch_name .'/file/)(.*?)(/source|/file|$)!', $_GET['q'], $matches);
+        $main_url = $matches[1] . $matches[2];
+        $file_name = $matches[2];
+        
+        $items[] = array('path' => $main_url, 'title' => t('file'),
           'callback' => 'api_page_file', 'access' => $access,
-          'callback arguments' => array($branch->branch_name, arg(3)),
+          'callback arguments' => array($branch->branch_name, $file_name),
           'type' => MENU_CALLBACK);
-        $items[] = array('path' => 'api/'. $branch->branch_name .'/file/'. arg(3) .'/documentation', 'title' => t('view documentation'),
+        $items[] = array('path' => $main_url .'/documentation', 'title' => t('view documentation'),
           'type' => MENU_DEFAULT_LOCAL_TASK, 'weight' => -10);
-        $items[] = array('path' => 'api/'. $branch->branch_name .'/file/'. arg(3) .'/source', 'title' => t('view source'),
+        $items[] = array('path' => $main_url .'/source', 'title' => t('view source'),
           'callback' => 'api_page_file_source', 'access' => $access,
-          'callback arguments' => array($branch->branch_name, arg(3)),
+          'callback arguments' => array($branch->branch_name, $file_name),
           'type' => MENU_LOCAL_TASK);
       }
 
@@ -140,9 +145,7 @@ function api_page_branch($branch_name) {
 function api_page_listing($branch_name, $object_type) {
   $headers = array();
   $headers[] = array('data' => t('Name'), 'field' => 'title');
-  if ($object_type != 'file') {
-    $headers[] = array('data' => t('Location'), 'field' => 'file_name');
-  }
+  $headers[] = array('data' => t('Location'), 'field' => 'file_name');
   $headers[] = t('Description');
 
   $rows = array();
@@ -150,9 +153,7 @@ function api_page_listing($branch_name, $object_type) {
   while ($object = db_fetch_object($result)) {
     $row = array();
     $row[] = l($object->title, 'api/'. $branch_name .'/'. $object_type .'/'. $object->object_name);
-    if ($object_type != 'file') {
-      $row[] = l($object->file_name, 'api/'. $branch_name .'/file/'. $object->file_name);
-    }
+    $row[] = l(str_replace('/', '/ ', $object->file_name), 'api/'. $branch_name .'/file/'. $object->file_name);
     $row[] = api_link_documentation($object->summary, $branch_name);
     $rows[] = $row;
   }
@@ -492,11 +493,11 @@ function api_page_admin() {
   $result = db_query('SELECT branch_name, title, directory FROM {api_branch}');
   while ($branch = db_fetch_object($result)) {
     $rows[] = array(
-      form_textfield('', $branch->branch_name. '][branch_name', $branch->branch_name, 10, 63),
+      form_textfield('', $branch->branch_name. '][branch_name', $branch->branch_name, 10, 31),
       form_textfield('', $branch->branch_name. '][title', $branch->title, 20, 255),
       form_textfield('', $branch->branch_name. '][directory', $branch->directory, 30, 255));
   }
-  $branch_name_field = form_textfield('', 'new][branch_name', '', 10, 63);
+  $branch_name_field = form_textfield('', 'new][branch_name', '', 10, 31);
   $title_field = form_textfield('', 'new][title', '', 20, 255);
   $directory_field = form_textfield('', 'new][directory', '', 30, 255);
   $rows[] = array($branch_name_field, $title_field, $directory_field);
@@ -530,10 +531,18 @@ function api_cron() {
 
   $branches = db_query('SELECT branch_name, directory FROM {api_branch}');
   while ($branch = db_fetch_object($branches)) {
-    $files = file_scan_directory($branch->directory, 'module|inc|php|theme|engine');
+    $files = file_scan_directory($branch->directory, '.*');
 
     foreach ($files as $path => $file) {
-      $file_name = substr($path, strrpos($path, '/') + 1);
+      if ($files_scanned >= variable_get('api_files_per_cron', 10)) {
+        break;
+      }
+
+      $file_name = substr($path, strlen($branch->directory) + 1);
+
+      if ($file_name{0} == '.') {
+        continue;
+      }
 
       $modified = 0;
       $result = db_query("SELECT f.modified FROM {api_documentation} d INNER JOIN {api_file} f ON d.did = f.did WHERE d.object_name = '%s' AND d.branch_name = '%s' AND d.object_type = 'file'", $file_name, $branch->branch_name);
@@ -542,13 +551,8 @@ function api_cron() {
       }
 
       if (filemtime($path) > $modified) {
-        print('Parsing "'. $path .'"...<br />');
-        flush();
-        api_parse_file($path, $branch->branch_name, $file_name);
-
-        $files_scanned++;
-        if ($files_scanned >= variable_get('api_files_per_cron', 10)) {
-          break;
+        if (api_parse_file($path, $branch->branch_name, $file_name)) {
+          $files_scanned++;
         }
       }
     }
