@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.9 2004/09/10 21:54:04 JonBob Exp $
+// $Id: api.module,v 1.10 2004/09/16 14:41:33 JonBob Exp $
 
 /**
  * @file
@@ -32,82 +32,86 @@ function api_help($section) {
 /**
  * Implementation of hook_menu().
  */
-function api_menu() {
+function api_menu($may_cache) {
   $items = array();
   $access = user_access('access content');
 
-  $items[] = array('path' => 'api', 'title' => t('API reference'),
-    'access' => user_access('access content'),
-    'callback' => 'api_page_main');
-  if (arg(0) == 'api') {
+  if ($may_cache) {
+    $items[] = array('path' => 'api', 'title' => t('API reference'),
+      'access' => user_access('access content'),
+      'callback' => 'api_page_main');
+    
     $result = db_query('SELECT branch_name, title FROM {api_branch}');
     while ($branch = db_fetch_object($result)) {
       $items[] = array('path' => 'api/'. $branch->branch_name, 'title' => $branch->title,
         'callback' => 'api_page_branch', 'access' => $access,
         'callback arguments' => array($branch->branch_name));
-
       $items[] = array('path' => 'api/'. $branch->branch_name .'/function', 'title' => t('functions'),
         'callback' => 'api_page_listing', 'access' => $access,
         'callback arguments' => array($branch->branch_name, 'function'));
-      if (is_string(arg(3))) {
-        $items[] = array('path' => 'api/'. $branch->branch_name .'/function/'. arg(3), 'title' => t('function'),
-          'callback' => 'api_page_function', 'access' => $access,
-          'callback arguments' => array($branch->branch_name, arg(3)),
-          'type' => MENU_CALLBACK);
-        $items[] = array('path' => 'api/'. $branch->branch_name .'/function/'. arg(3) .'/documentation', 'title' => t('view documentation'),
-          'type' => MENU_DEFAULT_LOCAL_TASK, 'weight' => -10);
-        $items[] = array('path' => 'api/'. $branch->branch_name .'/function/'. arg(3) .'/references', 'title' => t('list references'),
-          'callback' => 'api_page_function_references', 'access' => $access,
-          'callback arguments' => array($branch->branch_name, arg(3)),
-          'type' => MENU_LOCAL_TASK);
-      }
-
       $items[] = array('path' => 'api/'. $branch->branch_name .'/constant', 'title' => t('constants'),
         'callback' => 'api_page_listing', 'access' => $access,
         'callback arguments' => array($branch->branch_name, 'constant'));
-      if (is_string(arg(3))) {
-        $items[] = array('path' => 'api/'. $branch->branch_name .'/constant/'. arg(3), 'title' => t('constant'),
-          'callback' => 'api_page_constant', 'access' => $access,
-          'callback arguments' => array($branch->branch_name, arg(3)),
-          'type' => MENU_CALLBACK);
-      }
-
       $items[] = array('path' => 'api/'. $branch->branch_name .'/file', 'title' => t('files'),
         'callback' => 'api_page_listing', 'access' => $access,
         'callback arguments' => array($branch->branch_name, 'file'));
-      if (strpos($_GET['q'], 'api/'. $branch->branch_name .'/file/') !== FALSE) {
+      $items[] = array('path' => 'api/'. $branch->branch_name .'/group', 'title' => t('topics'),
+        'callback' => 'api_page_listing', 'access' => $access,
+        'callback arguments' => array($branch->branch_name, 'group'));
+    }
+
+    $items[] = array('path' => 'admin/api', 'title' => t('API reference'),
+      'access' => user_access('administer API reference'),
+      'callback' => 'api_page_admin');
+  }
+  else {
+    if (arg(0) == 'api') {
+      if (is_string(arg(3))) {
+        $items[] = array('path' => 'api/'. arg(1) .'/function/'. arg(3), 'title' => t('function'),
+          'callback' => 'api_page_function', 'access' => $access,
+          'callback arguments' => array(arg(1), arg(3)),
+          'type' => MENU_CALLBACK);
+        $items[] = array('path' => 'api/'. arg(1) .'/function/'. arg(3) .'/documentation', 'title' => t('view documentation'),
+          'type' => MENU_DEFAULT_LOCAL_TASK, 'weight' => -10);
+        $items[] = array('path' => 'api/'. arg(1) .'/function/'. arg(3) .'/references', 'title' => t('list references'),
+          'callback' => 'api_page_function_references', 'access' => $access,
+          'callback arguments' => array(arg(1), arg(3)),
+          'type' => MENU_LOCAL_TASK);
+      }
+
+      if (is_string(arg(3))) {
+        $items[] = array('path' => 'api/'. arg(1) .'/constant/'. arg(3), 'title' => t('constant'),
+          'callback' => 'api_page_constant', 'access' => $access,
+          'callback arguments' => array(arg(1), arg(3)),
+          'type' => MENU_CALLBACK);
+      }
+
+      if (strpos($_GET['q'], 'api/'. arg(1) .'/file/') !== FALSE) {
         $matches = array();
-        preg_match('!(api/'. $branch->branch_name .'/file/)(.*?)(/source|/file|$)!', $_GET['q'], $matches);
+        preg_match('!(api/'. arg(1) .'/file/)(.*?)(/source|/file|$)!', $_GET['q'], $matches);
         $main_url = $matches[1] . $matches[2];
         $file_name = $matches[2];
         
         $items[] = array('path' => $main_url, 'title' => t('file'),
           'callback' => 'api_page_file', 'access' => $access,
-          'callback arguments' => array($branch->branch_name, $file_name),
+          'callback arguments' => array(arg(1), $file_name),
           'type' => MENU_CALLBACK);
         $items[] = array('path' => $main_url .'/documentation', 'title' => t('view documentation'),
           'type' => MENU_DEFAULT_LOCAL_TASK, 'weight' => -10);
         $items[] = array('path' => $main_url .'/source', 'title' => t('view source'),
           'callback' => 'api_page_file_source', 'access' => $access,
-          'callback arguments' => array($branch->branch_name, $file_name),
+          'callback arguments' => array(arg(1), $file_name),
           'type' => MENU_LOCAL_TASK);
       }
 
-      $items[] = array('path' => 'api/'. $branch->branch_name .'/group', 'title' => t('topics'),
-        'callback' => 'api_page_listing', 'access' => $access,
-        'callback arguments' => array($branch->branch_name, 'group'));
       if (is_string(arg(3))) {
-        $items[] = array('path' => 'api/'. $branch->branch_name .'/group/'. arg(3), 'title' => t('topic'),
+        $items[] = array('path' => 'api/'. arg(1) .'/group/'. arg(3), 'title' => t('topic'),
           'callback' => 'api_page_group', 'access' => $access,
-          'callback arguments' => array($branch->branch_name, arg(3)),
+          'callback arguments' => array(arg(1), arg(3)),
           'type' => MENU_CALLBACK);
       }
     }
   }
-
-  $items[] = array('path' => 'admin/api', 'title' => t('API reference'),
-    'access' => user_access('administer API reference'),
-    'callback' => 'api_page_admin');
 
   return $items;
 }

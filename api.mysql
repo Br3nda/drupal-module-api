@@ -1,11 +1,11 @@
-# $Id: api.mysql,v 1.5 2004/09/02 13:23:51 JonBob Exp $
+# $Id: api.mysql,v 1.6 2004/09/16 14:41:33 JonBob Exp $
 
 #
 # Table structure for table `api_branch`
 #
 
 CREATE TABLE api_branch (
-  branch_name varchar(63) NOT NULL default '',
+  branch_name varchar(31) NOT NULL default '',
   title varchar(255) NOT NULL default '',
   directory varchar(255) NOT NULL default '',
   PRIMARY KEY  (branch_name)
@@ -18,11 +18,11 @@ CREATE TABLE api_branch (
 
 CREATE TABLE api_documentation (
   did int(10) unsigned NOT NULL default '0',
-  object_name varchar(63) NOT NULL default '',
-  branch_name varchar(63) NOT NULL default '',
-  object_type varchar(63) NOT NULL default '',
+  object_name varchar(127) NOT NULL default '',
+  branch_name varchar(31) NOT NULL default '',
+  object_type varchar(31) NOT NULL default '',
   title varchar(255) NOT NULL default '',
-  file_name varchar(63) NOT NULL default '',
+  file_name varchar(127) NOT NULL default '',
   summary mediumtext NOT NULL,
   documentation mediumtext NOT NULL,
   code mediumtext NOT NULL,
