@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.3 2004/08/20 18:55:17 JonBob Exp $
+// $Id: api.module,v 1.4 2004/08/27 20:41:45 JonBob Exp $
 
 /**
  * @file
@@ -140,6 +140,8 @@ function api_page_function_list($branch_id) {
  * Menu callback; displays documentation for a function.
  */
 function api_page_function($branch_id, $function_id) {
+  drupal_set_html_head('<style type="text/css">@import url(modules/api/api.css);</style>');
+  
   $result = db_query("SELECT * FROM {api_function} WHERE function_id = '%s' AND branch_id = '%s'", $function_id, $branch_id);
   if ($function = db_fetch_object($result)) {
     $output = '';
@@ -208,6 +210,8 @@ function api_page_file_list($branch_id) {
  * Menu callback; displays documentation for a file.
  */
 function api_page_file($branch_id, $file_id) {
+  drupal_set_html_head('<style type="text/css">@import url(modules/api/api.css);</style>');
+  
   $result = db_query("SELECT documentation, version FROM {api_file} WHERE file_id = '%s' AND branch_id = '%s'", $file_id, $branch_id);
   if ($file = db_fetch_object($result)) {
     $output = '';
@@ -245,6 +249,8 @@ function api_page_file($branch_id, $file_id) {
  * Menu callback; displays source code for a file.
  */
 function api_page_file_source($branch_id, $file_id) {
+  drupal_set_html_head('<style type="text/css">@import url(modules/api/api.css);</style>');
+  
   $result = db_query("SELECT code FROM {api_file} WHERE file_id = '%s' AND branch_id = '%s'", $file_id, $branch_id);
   if ($file = db_fetch_object($result)) {
     print theme('page', api_link_code($file->code, $branch_id), $file_id);
@@ -275,6 +281,8 @@ function api_page_group_list($branch_id) {
  * Menu callback; displays documentation for a group.
  */
 function api_page_group($branch_id, $group_id) {
+  drupal_set_html_head('<style type="text/css">@import url(modules/api/api.css);</style>');
+  
   $result = db_query("SELECT * FROM {api_group} WHERE group_id = '%s' AND branch_id = '%s'", $group_id, $branch_id);
   if ($group = db_fetch_object($result)) {
     $output = '';
@@ -337,15 +345,14 @@ function api_page_admin() {
     drupal_set_message('Changes saved.');
   }
 
-  if ($_POST['op'] == t('Refresh index')) {
+  if ($_POST['op'] == t('Clear index')) {
     db_query("UPDATE {api_branch} SET documentation = ''");
     db_query("DELETE FROM {api_file}");
     db_query("DELETE FROM {api_function}");
     db_query("DELETE FROM {api_group}");
     db_query("DELETE FROM {api_membership}");
-    api_cron();
 
-    drupal_set_message('Index refreshed.');
+    drupal_set_message(t('Index cleared. It will be rebuilt during the next few runs of %cron.', array('%cron' => '<a href="cron.php">cron.php</a>')));
   }
 
   $output = '';
@@ -369,11 +376,12 @@ function api_page_admin() {
   $form .= theme('table', $headers, $rows);
   $form .= form_submit(t('Save changes'));
 
-  $output .= '<h3>Branches to index</h3>';
+  $output .= '<h3>'. t('Branches to index'). '</h3>';
   $output .= form($form);
 
-  $output .= '<h3>Refresh index</h3>';
-  $form = form_submit(t('Refresh index'));
+  $output .= '<h3>'. t('Clear index') .'</h3>';
+  $output .= '<p>'. t('Remove all indexed code files.') .'</p>';
+  $form = form_submit(t('Clear index'));
   $output .= form($form);
 
   print theme('page', $output);
@@ -383,6 +391,8 @@ function api_page_admin() {
  * Implementation of hook_cron().
  */
 function api_cron() {
+  $files_scanned = 0;
+  
   $branches = db_query('SELECT branch_id, directory FROM {api_branch}');
   while ($branch = db_fetch_object($branches)) {
     $files = file_scan_directory($branch->directory, 'module|inc|php|theme');
@@ -397,8 +407,12 @@ function api_cron() {
       }
 
       if (filemtime($path) > $modified) {
-
         api_parse_file($path, $branch->branch_id, $file_id);
+        
+        $files_scanned++;
+        if ($files_scanned >= variable_get('api_files_per_cron', 10)) {
+          return;
+        }
       }
     }
   }
@@ -412,7 +426,7 @@ function api_parse_file($file_path, $branch_id, $file_id) {
 
   $version = '';
   $version_match = array();
-  if (preg_match('!\$Id: api.module,v 1.3 2004/08/20 18:55:17 JonBob Exp $!', $source, $version_match)) {
+  if (preg_match('!\$Id: api.module,v 1.4 2004/08/27 20:41:45 JonBob Exp $!', $source, $version_match)) {
     $version = $version_match[1] .' (checked in on '. $version_match[2] .' at '. $version_match[3] .' by '. $version_match[4] .')';
   }
 
@@ -441,7 +455,7 @@ function api_parse_file($file_path, $branch_id, $file_id) {
       // We rely on the Drupal coding convention that functions are closed in column 1.
       $code_end = strpos($source, "\n}", $code_start);
       $docblock['code'] = substr($source, $code_start, $code_end - $code_start + 2);
-      $docblock['code'] = highlight_string("<?php\n". $docblock['code'] ."\n?>", TRUE);
+      $docblock['code'] = api_format_php("<?php\n". $docblock['code'] ."\n?>");
 
       $docblock['start_line'] = substr_count(substr($source, 0, $code_start), "\n");
 
@@ -532,7 +546,7 @@ function api_parse_file($file_path, $branch_id, $file_id) {
     $code_start = $function_match[0][1] + 2;
     $code_end = strpos($source, "\n}", $code_start);
     $docblock['code'] = substr($source, $code_start, $code_end - $code_start + 2);
-    $docblock['code'] = highlight_string("<?php\n". $docblock['code'] ."\n?>", TRUE);
+    $docblock['code'] = api_format_php("<?php\n". $docblock['code'] ."\n?>");
 
     $docblock['start_line'] = substr_count(substr($source, 0, $code_start), "\n");
 
@@ -562,7 +576,7 @@ function api_parse_file($file_path, $branch_id, $file_id) {
       $documentation = api_format_documentation($docblock['content'], $branch_id);
     }
   }
-  db_query("INSERT INTO {api_file} (file_id, branch_id, modified, version, documentation, code) VALUES ('%s', '%s', %d, '%s', '%s', '%s')", $file_id, $branch_id, filemtime($file_path), $version, $documentation, highlight_string($source, TRUE));
+  db_query("INSERT INTO {api_file} (file_id, branch_id, modified, version, documentation, code) VALUES ('%s', '%s', %d, '%s', '%s', '%s')", $file_id, $branch_id, filemtime($file_path), $version, $documentation, api_format_php($source));
 
   foreach ($docblocks as $docblock) {
     if ($docblock['type'] == 'branch') {
@@ -582,12 +596,7 @@ function api_parse_file($file_path, $branch_id, $file_id) {
  * Turn function names into links.
  */
 function api_link_code($code, $branch_id) {
-  if (version_compare(phpversion(), '5.0.0', '<')) {
-    $code = preg_replace('!(<font color="#0000BB">)([a-zA-Z0-9_]+)(</font><font color="#007700">\()!e', '"$1". api_link_function("$2", "'. $branch_id .'") ."$3"', $code);
-  }
-  else {
-    $code = preg_replace('!(<span style="color: #0000BB">)([a-zA-Z0-9_]+)(</span><span style="color: #007700">\()!e', '"$1". api_link_function("$2", "'. $branch_id .'") ."$3"', $code);
-  }
+  $code = preg_replace('!(<span class="php-function">)([a-zA-Z0-9_]+)(</span>\()!e', '"$1". api_link_function("$2", "'. $branch_id .'") ."$3"', $code);
 
   return $code;
 }
@@ -687,6 +696,137 @@ function api_documentation_summary($documentation) {
   else {
     return substr($documentation, 0, $pos);
   }
+}
+
+/**
+ * Colorize and format a PHP script.
+ */
+function api_format_php($code) {
+  $output = '';
+
+  if (!defined('T_ML_COMMENT')) {
+    define('T_ML_COMMENT', T_COMMENT);
+  }
+  if (!defined('T_DOC_COMMENT')) {
+    define('T_DOC_COMMENT', T_COMMENT);
+  }
+  
+  $tokens = token_get_all($code);
+  
+  $in_string = FALSE;
+  
+  foreach($tokens as $token) {
+    if ($in_string) {
+      if ($token == '"') {
+        $output .= '"</span>';
+        $in_string = FALSE;
+      }
+      else {
+        $output .= is_array($token) ? htmlentities($token[1]) : htmlentities($token);
+      }
+      continue;
+    }
+    else if ($token == '"') {
+      $output .= '<span class="php-string">"';
+      $in_string = TRUE;
+      continue;
+    }
+    
+    if (is_array($token)) {
+      $type = $token[0];
+      $value = htmlentities($token[1]);
+      
+      switch ($type) {
+        // Discarded strings:
+        case T_OPEN_TAG:
+        case T_CLOSE_TAG:
+          break;
+                
+        case T_COMMENT:
+        case T_ML_COMMENT:
+        case T_DOC_COMMENT:
+          $output .= '<span class="php-comment">'. $value .'</span>';
+          break;
+        
+        case T_VARIABLE:
+          $output .= '<span class="php-variable">'. $value .'</span>';
+          break;
+        
+        case T_CONSTANT_ENCAPSED_STRING:
+        case T_INLINE_HTML:
+          $output .= '<span class="php-string">'. $value .'</span>';
+          break;
+
+        case T_STRING:
+          $output .= '<span class="php-function">'. $value .'</span>';
+          break;
+        
+        case T_LNUMBER:
+        case T_DNUMBER:
+          $output .= '<span class="php-constant">'. $value .'</span>';
+          break;
+
+        case T_ARRAY_CAST: case T_ARRAY: case T_AS: case T_BOOL_CAST:
+        case T_BREAK: case T_CASE: case T_CLASS: case T_CONST:
+        case T_CONTINUE: case T_DECLARE: case T_DEFAULT: case T_DO:
+        case T_DOUBLE_CAST: case T_ECHO: case T_ELSE: case T_ELSEIF:
+        case T_EMPTY: case T_ENDDECLARE: case T_ENDFOR: case T_ENDFOREACH:
+        case T_ENDIF: case T_ENDSWITCH: case T_ENDWHILE: case T_EVAL:
+        case T_EXIT: case T_EXTENDS: case T_FOR: case T_FOREACH:
+        case T_FUNCTION: case T_GLOBAL: case T_IF: case T_INCLUDE_ONCE:
+        case T_INCLUDE: case T_INT_CAST: case T_ISSET: case T_LIST:
+        case T_NEW: case T_OBJECT_CAST: case T_OLD_FUNCTION: case T_PRINT:
+        case T_REQUIRE_ONCE: case T_REQUIRE: case T_RETURN: case T_STATIC:
+        case T_STRING_CAST: case T_SWITCH: case T_UNSET_CAST: case T_UNSET:
+        case T_USE: case T_VAR: case T_WHILE:
+          $output .= '<span class="php-keyword">'. $value .'</span>';
+          break;
+        
+        default:
+          $output .= $value;
+      }
+    }
+    else {
+      $output .= $token;
+    }
+  }
+  
+  // Manage whitespace:
+  $output = preg_replace('!([\n ]+)!se', 'api_format_php_whitespace(\'$1\')', $output);
+  return '<div class="php">'. $output .'</div>';
+}
+
+/**
+ * Given a run of whitespace, convert it into nonbreaking spaces and forced line
+ * breaks as necessary to preserve it in the resulting HTML.
+ */
+function api_format_php_whitespace($whitespace) {
+  $output = '';
+  $breakingspace = 1;
+  $runlength = 0;
+  for ($i = 0; $i < strlen($whitespace); $i++) {
+    if ($whitespace{$i} == "\n") {
+      for ($j = 0; $j < $runlength - $breakingspace; $j++) {
+        $output .= '&nbsp;';
+      }
+      if ($breakingspace) {
+        $output .= ' ';
+      }
+      $output .= "<br />\n";
+      $breakingspace = 0;
+    }
+    else {
+      $runlength++;
+    }
+  }
+  for ($j = 0; $j < $runlength - $breakingspace; $j++) {
+    $output .= '&nbsp;';
+  }
+  if ($breakingspace) {
+    $output .= ' ';
+  }
+  
+  return $output;
 }
 
 ?>
