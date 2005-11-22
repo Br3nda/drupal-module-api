@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.6 2005/04/03 15:20:30 weitzman Exp $
+// $Id: parser.inc,v 1.7 2005/11/22 21:32:25 JonBob Exp $
 
 /**
  * @file
@@ -462,7 +462,7 @@ function api_format_documentation($documentation, $branch_name) {
   $documentation = check_plain($documentation);
 
   // Process the @link tag.
-  $documentation = preg_replace('!@link ([a-zA-Z0-9_]+\.[a-zA-Z0-9_]+) (.*?) @endlink!', l('$2', 'api/'. $branch_name .'/file/$1'), $documentation);
+  $documentation = preg_replace('!@link ([a-zA-Z0-9_/]+\.[a-zA-Z0-9_]+) (.*?) @endlink!', l('$2', 'api/'. $branch_name .'/file/$1'), $documentation);
   $documentation = preg_replace('!@link ([a-zA-Z0-9_]+)\(\) (.*?) @endlink!', l('$2', 'api/'. $branch_name .'/function/$1'), $documentation);
   $documentation = preg_replace('!@link ([a-zA-Z0-9_]+) (.*?) @endlink!', l('$2', 'api/'. $branch_name .'/group/$1'), $documentation);
 
