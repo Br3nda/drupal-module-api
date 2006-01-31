@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.8 2006/01/31 02:33:32 JonBob Exp $
+// $Id: parser.inc,v 1.9 2006/01/31 02:46:58 JonBob Exp $
 
 /**
  * @file
@@ -157,6 +157,10 @@ function api_parse_html_file($file_path, $branch_name, $file_name) {
  */
 function api_parse_php_file($file_path, $branch_name, $file_name) {
   $source = file_get_contents($file_path);
+
+  // Convert Mac/Win line breaks to Unix format.
+  $source = str_replace("\r\n","\n", $source);
+  $source = str_replace("\r","\n", $source);
 
   $docblock_matches = array();
   $docblocks = array();
@@ -424,7 +428,7 @@ function api_save_documentation(&$docblock) {
   switch ($docblock['object_type']) {
     case 'function':
       db_query('DELETE FROM {api_function} WHERE did = %d', $did);
-      db_query("INSERT INTO {api_function} (did, signature, start_line, parameters, return) VALUES (%d, '%s', %d, '%s', '%s')", $did, $docblock['signature'], $docblock['start_line'], $docblock['parameters'], $docblock['return']);
+      db_query("INSERT INTO {api_function} (did, signature, start_line, parameters, `return`) VALUES (%d, '%s', %d, '%s', '%s')", $did, $docblock['signature'], $docblock['start_line'], $docblock['parameters'], $docblock['return']);
 
       if (is_array($docblock['function calls'])) {
         foreach ($docblock['function calls'] as $function_name) {
@@ -464,6 +468,11 @@ function api_format_documentation($documentation, $branch_name) {
   $documentation = preg_replace('!@link ([a-zA-Z0-9_/]+\.[a-zA-Z0-9_]+) (.*?) @endlink!', l('$2', 'api/'. $branch_name .'/file/$1'), $documentation);
   $documentation = preg_replace('!@link ([a-zA-Z0-9_]+)\(\) (.*?) @endlink!', l('$2', 'api/'. $branch_name .'/function/$1'), $documentation);
   $documentation = preg_replace('!@link ([a-zA-Z0-9_]+) (.*?) @endlink!', l('$2', 'api/'. $branch_name .'/group/$1'), $documentation);
+
+  // Process the @see tag.
+  $documentation = preg_replace('!@see ([a-zA-Z0-9_]+) (.*?) \n!', l('$2', 'api/'. $branch_name .'/group/$1'), $documentation);
+  $documentation = preg_replace('!@see ([a-zA-Z0-9_]+)\(\) (.*?) \n!', l('$2', 'api/'. $branch_name .'/function/$1'), $documentation);
+  $documentation = preg_replace('!@see ([a-zA-Z0-9_]+) (.*?) \n!', l('$2', 'api/'. $branch_name .'/group/$1'), $documentation);
 
   // Remove any leftover Doxygen formatting statements.
   $documentation = preg_replace('!@[a-zA-Z0-9_}{]+!', '', $documentation);

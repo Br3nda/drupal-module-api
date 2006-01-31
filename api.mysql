@@ -1,4 +1,4 @@
-# $Id: api.mysql,v 1.7 2006/01/31 02:33:32 JonBob Exp $
+# $Id: api.mysql,v 1.8 2006/01/31 02:46:58 JonBob Exp $
 
 #
 # Table structure for table `api_branch`
@@ -52,7 +52,7 @@ CREATE TABLE api_function (
   signature varchar(255) NOT NULL default '',
   start_line int(10) NOT NULL default '0',
   parameters mediumtext NOT NULL,
-  return mediumtext NOT NULL,
+  `return` mediumtext NOT NULL,
   PRIMARY KEY  (did)
 ) TYPE=MyISAM /*!40100 DEFAULT CHARACTER SET utf8 */;
 # --------------------------------------------------------

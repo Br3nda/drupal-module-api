@@ -10,6 +10,7 @@ and supports the following Doxygen constructs:
   @param
   @return
   @link
+  @see
   @{
   @}
 
@@ -38,7 +39,7 @@ inside a function may have a right curly bracket in the first column.
 Besides the Doxygen features that are supported, this module also provides the
 following features:
 
-CVS version numbers and dates are parsed from $Id: README.txt,v 1.3 2004/09/02 16:35:16 JonBob Exp $ tags and reported.
+CVS version numbers and dates are parsed from $Id: README.txt,v 1.4 2006/01/31 02:46:58 JonBob Exp $ tags and reported.
 
 Functions may be in multiple groups (Doxygen ignores all but the first group). This
 allows, for example, theme_menu_tree() to be marked as both "themeable" and part of
