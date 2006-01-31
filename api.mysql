@@ -1,4 +1,4 @@
-# $Id: api.mysql,v 1.6 2004/09/16 14:41:33 JonBob Exp $
+# $Id: api.mysql,v 1.7 2006/01/31 02:33:32 JonBob Exp $
 
 #
 # Table structure for table `api_branch`
@@ -9,7 +9,7 @@ CREATE TABLE api_branch (
   title varchar(255) NOT NULL default '',
   directory varchar(255) NOT NULL default '',
   PRIMARY KEY  (branch_name)
-) TYPE=MyISAM;
+) TYPE=MyISAM /*!40100 DEFAULT CHARACTER SET utf8 */;
 # --------------------------------------------------------
 
 #
@@ -28,7 +28,7 @@ CREATE TABLE api_documentation (
   code mediumtext NOT NULL,
   PRIMARY KEY  (did),
   UNIQUE KEY object_name (object_name,branch_name,object_type)
-) TYPE=MyISAM;
+) TYPE=MyISAM /*!40100 DEFAULT CHARACTER SET utf8 */;
 # --------------------------------------------------------
 
 #
@@ -40,7 +40,7 @@ CREATE TABLE api_file (
   modified int(11) NOT NULL default '0',
   version varchar(255) NOT NULL default '',
   PRIMARY KEY  (did)
-) TYPE=MyISAM;
+) TYPE=MyISAM /*!40100 DEFAULT CHARACTER SET utf8 */;
 # --------------------------------------------------------
 
 #
@@ -54,7 +54,7 @@ CREATE TABLE api_function (
   parameters mediumtext NOT NULL,
   return mediumtext NOT NULL,
   PRIMARY KEY  (did)
-) TYPE=MyISAM;
+) TYPE=MyISAM /*!40100 DEFAULT CHARACTER SET utf8 */;
 # --------------------------------------------------------
 
 #
@@ -65,4 +65,4 @@ CREATE TABLE api_reference (
   from_did int(10) unsigned NOT NULL default '0',
   to_did int(10) unsigned NOT NULL default '0',
   PRIMARY KEY  (from_did,to_did)
-) TYPE=MyISAM;
+) TYPE=MyISAM /*!40100 DEFAULT CHARACTER SET utf8 */;

@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.7 2005/11/22 21:32:25 JonBob Exp $
+// $Id: parser.inc,v 1.8 2006/01/31 02:33:32 JonBob Exp $
 
 /**
  * @file
@@ -11,9 +11,8 @@
  */
 function api_parse_php_manual($location) {
   $source = file_get_contents($location);
-
   $function_matches = array();
-  preg_match_all('!^[a-zA-Z0-9_]+ ([a-zA-Z0-9_]+)\(.*<br />\n.*<br />$!m', $source, $function_matches, PREG_SET_ORDER);
+  preg_match_all('!^[a-zA-Z0-9_]+ ([a-zA-Z0-9_]+)\(.*\n.*$!m', $source, $function_matches, PREG_SET_ORDER);
   foreach ($function_matches as $function_match) {
     $docblock = array(
       'object_name' => $function_match[1],
@@ -626,7 +625,7 @@ function api_format_php($code) {
         case T_EXIT: case T_EXTENDS: case T_FOR: case T_FOREACH:
         case T_FUNCTION: case T_GLOBAL: case T_IF: case T_INCLUDE_ONCE:
         case T_INCLUDE: case T_INT_CAST: case T_ISSET: case T_LIST:
-        case T_NEW: case T_OBJECT_CAST: case T_OLD_FUNCTION: case T_PRINT:
+        case T_NEW: case T_OBJECT_CAST: case T_PRINT:
         case T_REQUIRE_ONCE: case T_REQUIRE: case T_RETURN: case T_STATIC:
         case T_STRING_CAST: case T_SWITCH: case T_UNSET_CAST: case T_UNSET:
         case T_USE: case T_VAR: case T_WHILE:
