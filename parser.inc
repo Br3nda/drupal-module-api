@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.9 2006/01/31 02:46:58 JonBob Exp $
+// $Id: parser.inc,v 1.10 2006/02/09 07:43:20 JonBob Exp $
 
 /**
  * @file
@@ -465,14 +465,14 @@ function api_format_documentation($documentation, $branch_name) {
   $documentation = check_plain($documentation);
 
   // Process the @link tag.
-  $documentation = preg_replace('!@link ([a-zA-Z0-9_/]+\.[a-zA-Z0-9_]+) (.*?) @endlink!', l('$2', 'api/'. $branch_name .'/file/$1'), $documentation);
-  $documentation = preg_replace('!@link ([a-zA-Z0-9_]+)\(\) (.*?) @endlink!', l('$2', 'api/'. $branch_name .'/function/$1'), $documentation);
-  $documentation = preg_replace('!@link ([a-zA-Z0-9_]+) (.*?) @endlink!', l('$2', 'api/'. $branch_name .'/group/$1'), $documentation);
+  $documentation = preg_replace('!@link ([a-zA-Z0-9_/]+\.[a-zA-Z0-9_]+) (.*?) @endlink!', str_replace('%24', '$', l('$2', 'api/'. $branch_name .'/file/$1')), $documentation);
+  $documentation = preg_replace('!@link ([a-zA-Z0-9_]+)\(\) (.*?) @endlink!', str_replace('%24', '$', l('$2', 'api/'. $branch_name .'/function/$1')), $documentation);
+  $documentation = preg_replace('!@link ([a-zA-Z0-9_]+) (.*?) @endlink!', str_replace('%24', '$', l('$2', 'api/'. $branch_name .'/group/$1')), $documentation);
 
   // Process the @see tag.
-  $documentation = preg_replace('!@see ([a-zA-Z0-9_]+) (.*?) \n!', l('$2', 'api/'. $branch_name .'/group/$1'), $documentation);
-  $documentation = preg_replace('!@see ([a-zA-Z0-9_]+)\(\) (.*?) \n!', l('$2', 'api/'. $branch_name .'/function/$1'), $documentation);
-  $documentation = preg_replace('!@see ([a-zA-Z0-9_]+) (.*?) \n!', l('$2', 'api/'. $branch_name .'/group/$1'), $documentation);
+  $documentation = preg_replace('!@see ([a-zA-Z0-9_]+) (.*?) \n!', str_replace('%24', '$', l('$2', 'api/'. $branch_name .'/group/$1')), $documentation);
+  $documentation = preg_replace('!@see ([a-zA-Z0-9_]+)\(\) (.*?) \n!', str_replace('%24', '$', l('$2', 'api/'. $branch_name .'/function/$1')), $documentation);
+  $documentation = preg_replace('!@see ([a-zA-Z0-9_]+) (.*?) \n!', str_replace('%24', '$', l('$2', 'api/'. $branch_name .'/group/$1')), $documentation);
 
   // Remove any leftover Doxygen formatting statements.
   $documentation = preg_replace('!@[a-zA-Z0-9_}{]+!', '', $documentation);
