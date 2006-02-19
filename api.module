@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.12 2006/01/31 02:33:32 JonBob Exp $
+// $Id: api.module,v 1.13 2006/02/19 22:48:18 JonBob Exp $
 
 /**
  * @file
@@ -40,7 +40,7 @@ function api_menu($may_cache) {
     $items[] = array('path' => 'api', 'title' => t('API reference'),
       'access' => user_access('access content'),
       'callback' => 'api_page_main');
-    
+
     $result = db_query('SELECT branch_name, title FROM {api_branch}');
     while ($branch = db_fetch_object($result)) {
       $items[] = array('path' => 'api/'. $branch->branch_name, 'title' => $branch->title,
@@ -95,7 +95,7 @@ function api_menu($may_cache) {
         preg_match('!(api/'. arg(1) .'/file/)(.*?)(/source|/file|$)!', $_GET['q'], $matches);
         $main_url = $matches[1] . $matches[2];
         $file_name = $matches[2];
-        
+
         $items[] = array('path' => $main_url, 'title' => t('file'),
           'callback' => 'api_page_file', 'access' => $access,
           'callback arguments' => array(arg(1), $file_name),
@@ -487,7 +487,7 @@ function api_page_admin() {
       '#default_value' => $branch->directory,
     );
   }
-  
+
   $form['new'] = array('#tree' => TRUE);
   $form['new']['branch_name'] = array(
     '#title' => t('Short name'),
@@ -587,6 +587,8 @@ function api_cron() {
 
   $files_scanned = 0;
 
+  db_query("UPDATE {api_file} SET found = 0");
+
   $branches = db_query('SELECT branch_name, directory FROM {api_branch}');
   while ($branch = db_fetch_object($branches)) {
     $files = file_scan_directory($branch->directory, '.*');
@@ -603,15 +605,31 @@ function api_cron() {
       }
 
       $modified = 0;
-      $result = db_query("SELECT f.modified FROM {api_documentation} d INNER JOIN {api_file} f ON d.did = f.did WHERE d.object_name = '%s' AND d.branch_name = '%s' AND d.object_type = 'file'", $file_name, $branch->branch_name);
+      $result = db_query("SELECT f.did, f.modified FROM {api_documentation} d INNER JOIN {api_file} f ON d.did = f.did WHERE d.object_name = '%s' AND d.branch_name = '%s' AND d.object_type = 'file'", $file_name, $branch->branch_name);
       if ($file = db_fetch_object($result)) {
         $modified = $file->modified;
+        db_query("UPDATE {api_file} SET found = 1 WHERE did = %d", $file->did);
       }
 
       if (filemtime($path) > $modified) {
         if (api_parse_file($path, $branch->branch_name, $file_name)) {
           $files_scanned++;
         }
+      }
+    }
+  }
+
+  // Remove outdated files.
+  if ($files_scanned == 0) {
+    $result = db_query("SELECT ad.file_name, ad.branch_name FROM {api_file} af LEFT JOIN {api_documentation} ad ON ad.did = af.did WHERE af.found = 0");
+    while ($file = db_fetch_object($result)) {
+      print ('Removing '. $file->file_name .'...<br />');
+      $doc_result = db_query("SELECT ad.did FROM {api_documentation} ad WHERE ad.file_name = '%s' AND ad.branch_name = '%s'", $file->file_name, $file->branch_name);
+      while ($doc = db_fetch_object($doc_result)) {
+        db_query("DELETE FROM {api_documentation} WHERE did = %d", $doc->did);
+        db_query("DELETE FROM {api_file} WHERE did = %d", $doc->did);
+        db_query("DELETE FROM {api_function} WHERE did = %d", $doc->did);
+        db_query("DELETE FROM {api_reference} WHERE from_did = %d OR to_did = %d", $doc->did, $doc->did);
       }
     }
   }
@@ -732,5 +750,3 @@ function api_search_item($item) {
 
   return $output;
 }
-
-?>

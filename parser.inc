@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.10 2006/02/09 07:43:20 JonBob Exp $
+// $Id: parser.inc,v 1.11 2006/02/19 22:48:18 JonBob Exp $
 
 /**
  * @file
@@ -124,7 +124,7 @@ function api_parse_html_file($file_path, $branch_name, $file_name) {
     $docblocks[0]['documentation'] = $documentation_match[2];
     $docblocks[0]['summary'] = api_documentation_summary($documentation_match[2]);
   }
-  
+
   $docblocks[0]['version'] = '';
   $version_match = array();
   if (preg_match('!\$'.'Id: .*?,v (.*?) (.*?) (.*?) (.*?) Exp \$!', $source, $version_match)) {
