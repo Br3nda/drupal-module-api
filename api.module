@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.13 2006/02/19 22:48:18 JonBob Exp $
+// $Id: api.module,v 1.14 2006/02/19 23:02:00 JonBob Exp $
 
 /**
  * @file
@@ -693,60 +693,4 @@ function api_link_name($name, $branch_name) {
   else {
     return $name;
   }
-}
-
-/**
- * Implementation of hook_search().
- */
-function api_search($keys) {
-  $count = db_result(db_query("SELECT COUNT(*) FROM {api_documentation} d WHERE d.title LIKE '%%%s%%' OR d.documentation LIKE '%%%s%%'", $keys, $keys));
-  $result = db_query_range("SELECT d.title, d.object_name, d.branch_name, b.title AS branch_title, d.object_type, d.summary FROM {api_documentation} d INNER JOIN {api_branch} b ON d.branch_name = b.branch_name WHERE d.title LIKE '%%%s%%' OR d.documentation LIKE '%%%s%%' ORDER BY (d.title LIKE '%%%s%%') DESC, d.branch_name, d.title", $keys, $keys, $keys, 0, 10);
-
-  $matches = array();
-  while ($object = db_fetch_object($result)) {
-    $match = array();
-    $match['title'] = $object->title;
-    $match['branch'] = $object->branch_title;
-    $match['summary'] = $object->summary;
-    switch ($object->object_type) {
-      case 'function':
-        $match['link'] = url('api/'. $object->branch_name .'/function/'. $object->object_name);
-        $match['type'] = t('function');
-        break;
-      case 'file':
-        $match['link'] = url('api/'. $object->branch_name .'/file/'. $object->object_name);
-        $match['type'] = t('file');
-        break;
-      case 'group':
-        $match['link'] = url('api/'. $object->branch_name .'/group/'. $object->object_name);
-        $match['type'] = t('topic');
-        break;
-      case 'mainpage':
-        $match['link'] = url('api/'. $object->branch_name .'/branch/'. $object->object_name);
-        $match['type'] = t('branch');
-        break;
-    }
-    $matches[] = $match;
-  }
-
-  if ($count > 10) {
-    return array(t('Matching API documentation (10 of %count)', array('%count' => $count)), $matches);
-  }
-  else if ($count > 0) {
-    return array(t('Matching API documentation'), $matches);
-  }
-}
-
-/**
- * Implementation of hook_search_item().
- */
-function api_search_item($item) {
-  $output = '<dt class="title"><a href="'. $item['link'] .'">'. $item['title'] .'</a></dt>';
-  $output .= '<dd class="small">'. $item['type'] .' ('. $item['branch'] .')';
-  if (!empty($item['summary'])) {
-    $output .= ': '. $item['summary'];
-  }
-  $output .= '</dd>';
-
-  return $output;
 }
