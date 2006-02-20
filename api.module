@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.14 2006/02/19 23:02:00 JonBob Exp $
+// $Id: api.module,v 1.15 2006/02/20 03:18:40 JonBob Exp $
 
 /**
  * @file
@@ -131,7 +131,55 @@ function api_perm() {
  * Menu callback; displays a branch listing.
  */
 function api_page_main() {
-  return '';
+  $output = '';
+
+  $result = db_query('SELECT branch_name, title FROM {api_branch}');
+  while ($branch = db_fetch_object($result)) {
+    $form = array();
+    $form[$branch->branch_name] = array(
+      '#type' => 'fieldset',
+      '#title' => $branch->title,
+    );
+    $form[$branch->branch_name]['branch_name'] = array(
+      '#type' => 'value',
+      '#value' => $branch->branch_name,
+    );
+    $form[$branch->branch_name]['search'] = array(
+      '#title' => t('Function, file or topic name'),
+      '#type' => 'textfield',
+      '#default_value' => '',
+      '#required' => TRUE,
+    );
+    $form[$branch->branch_name]['submit'] = array(
+      '#type' => 'submit',
+      '#value' => t('Look up'),
+    );
+    $output .= drupal_get_form('api_page_main', $form);
+  }
+  return $output;
+}
+
+/**
+ *
+ */
+function api_page_main_submit($form_id, $form_values) {
+  $result = db_query("SELECT object_name, object_type, branch_name FROM {api_documentation} WHERE object_name = '%s' AND branch_name = '%s'", $form_values['search'], $form_values['branch_name']);
+  if ($obj = db_fetch_object($result)) {
+    drupal_goto('api/'. $obj->branch_name .'/'. $obj->object_type .'/'. $obj->object_name);
+  }
+  else {
+    $result = db_query("SELECT object_name, object_type, branch_name FROM {api_documentation} WHERE object_name LIKE '%s%%' AND branch_name = '%s'", $form_values['search'], $form_values['branch_name']);
+    if ($obj = db_fetch_object($result)) {
+      drupal_goto('api/'. $obj->branch_name .'/'. $obj->object_type .'/'. $obj->object_name);
+    }
+    else {
+      $result = db_query("SELECT object_name, object_type, branch_name FROM {api_documentation} WHERE object_name LIKE '%%%s%%' AND branch_name = '%s'", $form_values['search'], $form_values['branch_name']);
+      if ($obj = db_fetch_object($result)) {
+        drupal_goto('api/'. $obj->branch_name .'/'. $obj->object_type .'/'. $obj->object_name);
+      }
+    }
+  }
+  drupal_set_message(t('No match found.'));
 }
 
 /**
