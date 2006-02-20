@@ -1,4 +1,4 @@
-# $Id: api.mysql,v 1.8 2006/01/31 02:46:58 JonBob Exp $
+# $Id: api.mysql,v 1.9 2006/02/20 03:51:29 JonBob Exp $
 
 #
 # Table structure for table `api_branch`
@@ -39,6 +39,7 @@ CREATE TABLE api_file (
   did int(10) unsigned NOT NULL default '0',
   modified int(11) NOT NULL default '0',
   version varchar(255) NOT NULL default '',
+  found tinyint(1) UNSIGNED NOT NULL default 0,
   PRIMARY KEY  (did)
 ) TYPE=MyISAM /*!40100 DEFAULT CHARACTER SET utf8 */;
 # --------------------------------------------------------

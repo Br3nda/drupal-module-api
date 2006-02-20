@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.15 2006/02/20 03:18:40 JonBob Exp $
+// $Id: api.module,v 1.16 2006/02/20 03:51:29 JonBob Exp $
 
 /**
  * @file
@@ -396,7 +396,14 @@ function api_page_file($branch_name, $object_name) {
   drupal_set_html_head('<style type="text/css">@import url(modules/api/api.css);</style>');
 
   $result = db_query("SELECT d.did, d.title, d.documentation, f.version FROM {api_documentation} d INNER JOIN {api_file} f ON d.did = f.did WHERE object_name = '%s' AND branch_name = '%s' AND object_type = 'file'", $object_name, $branch_name);
-  if ($file = db_fetch_object($result)) {
+  $file = db_fetch_object($result);
+  if (!$file) {
+    $result = db_query("SELECT d.object_name FROM {api_documentation} d WHERE title = '%s' AND branch_name = '%s' AND object_type = 'file'", $object_name, $branch_name);
+    if ($object_name = db_result($result)) {
+      drupal_goto('api/'. $branch_name .'/file/'. $object_name);
+    }
+  }
+  if ($file) {
     $output = '';
 
     if (!empty($file->version)) {
