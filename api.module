@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.16 2006/02/20 03:51:29 JonBob Exp $
+// $Id: api.module,v 1.17 2006/03/04 19:54:25 JonBob Exp $
 
 /**
  * @file
@@ -235,7 +235,7 @@ function api_page_function_dump($branch_name) {
  * Menu callback; displays documentation for a function.
  */
 function api_page_function($branch_name, $object_name) {
-  drupal_set_html_head('<style type="text/css">@import url(modules/api/api.css);</style>');
+  theme('add_style', drupal_get_path('module', 'api') .'/api.css');
 
   $result = db_query("SELECT d.did, d.title, d.file_name, d.documentation, d.code, f.signature, f.start_line, f.parameters, f.return FROM {api_documentation} d INNER JOIN {api_function} f ON d.did = f.did WHERE d.object_name = '%s' AND d.branch_name = '%s' AND d.object_type = 'function'", $object_name, $branch_name);
   if ($function = db_fetch_object($result)) {
@@ -290,7 +290,7 @@ function api_page_function($branch_name, $object_name) {
  * Menu callback; displays all functions that reference another function.
  */
 function api_page_function_references($branch_name, $object_name) {
-  drupal_set_html_head('<style type="text/css">@import url(modules/api/api.css);</style>');
+  theme('add_style', drupal_get_path('module', 'api') .'/api.css');
 
   $result = db_query("SELECT d.did, d.title FROM {api_documentation} d WHERE d.object_name = '%s' AND d.branch_name = '%s' AND d.object_type = 'function'", $object_name, $branch_name);
   if ($function = db_fetch_object($result)) {
@@ -349,7 +349,7 @@ function api_page_function_references($branch_name, $object_name) {
  * Menu callback; displays documentation for a constant.
  */
 function api_page_constant($branch_name, $object_name) {
-  drupal_set_html_head('<style type="text/css">@import url(modules/api/api.css);</style>');
+  theme('add_style', drupal_get_path('module', 'api') .'/api.css');
 
   $result = db_query("SELECT d.did, d.title, d.file_name, d.documentation, d.code FROM {api_documentation} d WHERE d.object_name = '%s' AND d.branch_name = '%s' AND d.object_type = 'constant'", $object_name, $branch_name);
   if ($constant = db_fetch_object($result)) {
@@ -393,7 +393,7 @@ function api_page_constant($branch_name, $object_name) {
  * Menu callback; displays documentation for a file.
  */
 function api_page_file($branch_name, $object_name) {
-  drupal_set_html_head('<style type="text/css">@import url(modules/api/api.css);</style>');
+  theme('add_style', drupal_get_path('module', 'api') .'/api.css');
 
   $result = db_query("SELECT d.did, d.title, d.documentation, f.version FROM {api_documentation} d INNER JOIN {api_file} f ON d.did = f.did WHERE object_name = '%s' AND branch_name = '%s' AND object_type = 'file'", $object_name, $branch_name);
   $file = db_fetch_object($result);
@@ -454,7 +454,7 @@ function api_page_file($branch_name, $object_name) {
  * Menu callback; displays source code for a file.
  */
 function api_page_file_source($branch_name, $object_name) {
-  drupal_set_html_head('<style type="text/css">@import url(modules/api/api.css);</style>');
+  theme('add_style', drupal_get_path('module', 'api') .'/api.css');
 
   $result = db_query("SELECT title, code FROM {api_documentation} WHERE object_name = '%s' AND branch_name = '%s' AND object_type = 'file'", $object_name, $branch_name);
   if ($file = db_fetch_object($result)) {
@@ -470,7 +470,7 @@ function api_page_file_source($branch_name, $object_name) {
  * Menu callback; displays documentation for a group.
  */
 function api_page_group($branch_name, $object_name) {
-  drupal_set_html_head('<style type="text/css">@import url(modules/api/api.css);</style>');
+  theme('add_style', drupal_get_path('module', 'api') .'/api.css');
 
   $result = db_query("SELECT did, title, documentation FROM {api_documentation} WHERE object_name = '%s' AND branch_name = '%s' AND object_type = 'group'", $object_name, $branch_name);
   if ($group = db_fetch_object($result)) {
