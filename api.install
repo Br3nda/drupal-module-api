@@ -1,0 +1,75 @@
+<?php
+function api_install() {
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      db_query("CREATE TABLE {api_branch} (
+        branch_name varchar(31) NOT NULL default '',
+        title varchar(255) NOT NULL default '',
+        directory varchar(255) NOT NULL default '',
+        PRIMARY KEY  (branch_name)
+      ) TYPE=MyISAM /*!40100 DEFAULT CHARACTER SET utf8 */;");
+
+      db_query("CREATE TABLE {api_documentation} (
+        did int(10) unsigned NOT NULL default '0',
+        object_name varchar(127) NOT NULL default '',
+        branch_name varchar(31) NOT NULL default '',
+        object_type varchar(31) NOT NULL default '',
+        title varchar(255) NOT NULL default '',
+        file_name varchar(127) NOT NULL default '',
+        summary mediumtext NOT NULL,
+        documentation mediumtext NOT NULL,
+        code mediumtext NOT NULL,
+        PRIMARY KEY  (did),
+        UNIQUE KEY object_name (object_name,branch_name,object_type)
+      ) TYPE=MyISAM /*!40100 DEFAULT CHARACTER SET utf8 */;");
+
+      db_query("CREATE TABLE {api_file} (
+        did int(10) unsigned NOT NULL default '0',
+        modified int(11) NOT NULL default '0',
+        version varchar(255) NOT NULL default '',
+        found tinyint(1) UNSIGNED NOT NULL default 0,
+        PRIMARY KEY  (did)
+      ) TYPE=MyISAM /*!40100 DEFAULT CHARACTER SET utf8 */;");
+
+      db_query("CREATE TABLE {api_function} (
+        did int(10) unsigned NOT NULL default '0',
+        signature varchar(255) NOT NULL default '',
+        start_line int(10) NOT NULL default '0',
+        parameters mediumtext NOT NULL,
+        `return` mediumtext NOT NULL,
+        PRIMARY KEY  (did)
+      ) TYPE=MyISAM /*!40100 DEFAULT CHARACTER SET utf8 */;");
+
+      db_query("CREATE TABLE {api_reference} (
+        from_did int(10) unsigned NOT NULL default '0',
+        to_did int(10) unsigned NOT NULL default '0',
+        PRIMARY KEY  (from_did,to_did)
+      ) TYPE=MyISAM /*!40100 DEFAULT CHARACTER SET utf8 */;");
+      break;
+    
+    case 'pgsql':
+      break;
+  }
+}
+
+function api_update_1() {
+  return _system_update_utf8(array('api_branch', 'api_documentation', 'api_file', 'api_function', 'api_reference'));
+}
+
+function api_update_2() {
+  $ret = array();
+
+  switch ($GLOBALS['db_type']) {
+    case 'pgsql':
+      db_add_column($ret, 'api_file', 'found', 'smallint', array('not null' => TRUE, 'default' => 0));
+      break;
+
+    case 'mysql':
+    case 'mysqli':
+      $ret[] = update_sql("ALTER TABLE {api_file} ADD COLUMN found tinyint(1) UNSIGNED NOT NULL DEFAULT 0");
+      break;
+  }
+
+  return $ret;
+}
