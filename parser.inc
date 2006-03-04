@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.11 2006/02/19 22:48:18 JonBob Exp $
+// $Id: parser.inc,v 1.12 2006/03/04 19:44:54 JonBob Exp $
 
 /**
  * @file
@@ -10,20 +10,22 @@
  * Parse out function definitions from the PHP manual.
  */
 function api_parse_php_manual($location) {
-  $source = file_get_contents($location);
-  $function_matches = array();
-  preg_match_all('!^[a-zA-Z0-9_]+ ([a-zA-Z0-9_]+)\(.*\n.*$!m', $source, $function_matches, PREG_SET_ORDER);
-  foreach ($function_matches as $function_match) {
-    $docblock = array(
-      'object_name' => $function_match[1],
-      'branch_name' => 'php',
-      'object_type' => 'function',
-      'file_name' => $location,
-      'title' => $function_match[1],
-      'summary' => api_documentation_summary($function_match[0]),
-      'documentation' => $function_match[0],
-      'code' => '');
-    api_save_documentation($docblock);
+  $response = drupal_http_request($location);
+  if ($response->code == 200) {
+    $function_matches = array();
+    preg_match_all('!^[a-zA-Z0-9_]+ ([a-zA-Z0-9_]+)\(.*\n.*$!m', $response->data, $function_matches, PREG_SET_ORDER);
+    foreach ($function_matches as $function_match) {
+      $docblock = array(
+        'object_name' => $function_match[1],
+        'branch_name' => 'php',
+        'object_type' => 'function',
+        'file_name' => $location,
+        'title' => $function_match[1],
+        'summary' => api_documentation_summary($function_match[0]),
+        'documentation' => $function_match[0],
+        'code' => '');
+      api_save_documentation($docblock);
+    }
   }
 }
 
