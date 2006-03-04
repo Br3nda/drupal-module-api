@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.13 2006/03/04 20:20:28 JonBob Exp $
+// $Id: parser.inc,v 1.14 2006/03/04 20:38:02 JonBob Exp $
 
 /**
  * @file
@@ -656,7 +656,7 @@ function api_format_php($code) {
 
   // Manage whitespace:
   $output = preg_replace('!([\n ]+)!se', 'api_format_php_whitespace(\'$1\')', $output);
-  return '<div class="php">'. $output .'</div>';
+  return '<div class="php"><code>'. $output .'</code></div>';
 }
 
 /**
