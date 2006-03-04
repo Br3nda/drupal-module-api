@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.12 2006/03/04 19:44:54 JonBob Exp $
+// $Id: parser.inc,v 1.13 2006/03/04 20:20:28 JonBob Exp $
 
 /**
  * @file
@@ -482,7 +482,9 @@ function api_format_documentation($documentation, $branch_name) {
   $documentation = api_format_documentation_lists($documentation);
 
   // Convert newlines into paragraphs.
-  $documentation = preg_replace('!(.*?)(\n\n|$)!s', "\n<p>\n".'$1'."\n</p>\n", $documentation);
+  $documentation = preg_replace('|\n*$|', '', $documentation) ."\n\n"; // just to make things a little easier, pad the end
+  $documentation = preg_replace('!\n?(.+?)(?:\n\s*\n|\z)!s', "<p>$1</p>\n", $documentation); // make paragraphs, including one at the end
+  $documentation = preg_replace('!<p>\s*?</p>!', '', $documentation); // under certain strange conditions it could create a P of entirely whitespace
 
   return $documentation;
 }
