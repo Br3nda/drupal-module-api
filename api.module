@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.17 2006/03/04 19:54:25 JonBob Exp $
+// $Id: api.module,v 1.18 2006/03/05 19:42:49 JonBob Exp $
 
 /**
  * @file
@@ -398,7 +398,7 @@ function api_page_file($branch_name, $object_name) {
   $result = db_query("SELECT d.did, d.title, d.documentation, f.version FROM {api_documentation} d INNER JOIN {api_file} f ON d.did = f.did WHERE object_name = '%s' AND branch_name = '%s' AND object_type = 'file'", $object_name, $branch_name);
   $file = db_fetch_object($result);
   if (!$file) {
-    $result = db_query("SELECT d.object_name FROM {api_documentation} d WHERE title = '%s' AND branch_name = '%s' AND object_type = 'file'", $object_name, $branch_name);
+    $result = db_query("SELECT d.object_name FROM {api_documentation} d WHERE d.object_name LIKE '%%/%s' AND branch_name = '%s' AND object_type = 'file'", $object_name, $branch_name);
     if ($object_name = db_result($result)) {
       drupal_goto('api/'. $branch_name .'/file/'. $object_name);
     }
