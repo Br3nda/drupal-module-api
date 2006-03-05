@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.18 2006/03/05 19:42:49 JonBob Exp $
+// $Id: api.module,v 1.19 2006/03/05 20:07:15 JonBob Exp $
 
 /**
  * @file
@@ -706,8 +706,10 @@ function api_link_code($code, $branch_name) {
  * Turn function and file names into links.
  */
 function api_link_documentation($documentation, $branch_name) {
-  $documentation = preg_replace('!([a-zA-Z0-9_]+)(\()!e', 'api_link_name("$1", "'. $branch_name .'") ."$2"', $documentation);
-  $documentation = preg_replace('%(?<!")[a-zA-Z0-9_]+\.[a-zA-Z0-9_]+(?!")%e', 'api_link_name("$0", "'. $branch_name .'")', $documentation);
+  // We do the replacement in two phases to avoid linking documentation within title attributes.
+  $documentation = preg_replace('!([a-zA-Z0-9_]+)(\()!', '@@@$1@@@$2', $documentation);
+  $documentation = preg_replace('%(?<!")[a-zA-Z0-9_]+\.[a-zA-Z0-9_]+(?!")%', '@@@$0@@@', $documentation);
+  $documentation = preg_replace('!@@@([^@]*)@@@!e', 'api_link_name("$1", "'. $branch_name .'")', $documentation);
 
   return $documentation;
 }
