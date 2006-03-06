@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.20 2006/03/06 15:39:10 JonBob Exp $
+// $Id: api.module,v 1.21 2006/03/06 16:33:13 JonBob Exp $
 
 /**
  * @file
@@ -649,7 +649,6 @@ function api_cron() {
   $branches = db_query('SELECT branch_name, directory FROM {api_branch}');
   while ($branch = db_fetch_object($branches)) {
     $files = api_scan_directories($branch->directory);
-dprint_r($files);
     foreach ($files as $path => $file_name) {
       if ($files_scanned >= variable_get('api_files_per_cron', 10)) {
         break;
@@ -778,7 +777,7 @@ function api_scan_directories($directories) {
   foreach ($directory_array as $directory) {
     $files = file_scan_directory($directory, '.*');
     foreach ($files as $path => $file) {
-      if ($file->basename{0} == '.') {
+      if (strpos($path, '/.') !== FALSE) {
         continue;
       }
       $file_name = substr($path, strlen($common_ancestor) + 1);
