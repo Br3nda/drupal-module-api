@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.19 2006/03/05 20:07:15 JonBob Exp $
+// $Id: api.module,v 1.20 2006/03/06 15:39:10 JonBob Exp $
 
 /**
  * @file
@@ -540,6 +540,7 @@ function api_page_admin() {
       '#title' => t('Directory name'),
       '#type' => 'textfield',
       '#default_value' => $branch->directory,
+      '#description' => t('The absolute path of the directory to index. Multiple paths may be given, separated by colons, e.g.: "/mysite/drupal:/mysite/developer".'),
     );
   }
 
@@ -555,6 +556,7 @@ function api_page_admin() {
   $form['new']['directory'] = array(
     '#title' => t('Directory name'),
     '#type' => 'textfield',
+    '#description' => t('The absolute path of the directory to index. Multiple paths may be given, separated by colons, e.g.: "/mysite/drupal:/mysite/developer".'),
   );
 
   $form['submit'] = array(
@@ -646,17 +648,11 @@ function api_cron() {
 
   $branches = db_query('SELECT branch_name, directory FROM {api_branch}');
   while ($branch = db_fetch_object($branches)) {
-    $files = file_scan_directory($branch->directory, '.*');
-
-    foreach ($files as $path => $file) {
+    $files = api_scan_directories($branch->directory);
+dprint_r($files);
+    foreach ($files as $path => $file_name) {
       if ($files_scanned >= variable_get('api_files_per_cron', 10)) {
         break;
-      }
-
-      $file_name = substr($path, strlen($branch->directory) + 1);
-
-      if ($file_name{0} == '.') {
-        continue;
       }
 
       $modified = 0;
@@ -750,4 +746,45 @@ function api_link_name($name, $branch_name) {
   else {
     return $name;
   }
+}
+
+/**
+ * Find all the files in the directories specified for a branch.
+ */
+function api_scan_directories($directories) {
+  $directory_array = explode(':', $directories);
+
+  if (count($directory_array) > 1) {
+    $directories_components = array();
+    foreach ($directory_array as $directory) {
+      $directory_components = array();
+      $parts = explode('/', $directory);
+      foreach ($parts as $part) {
+        if (strlen($part)) {
+          array_unshift($directory_components, reset($directory_components) .'/'. $part);
+        }
+      }
+      $directories_components[] = $directory_components;
+    }
+
+    $common_ancestor_components = call_user_func_array('array_intersect', $directories_components);
+    $common_ancestor = reset($common_ancestor_components);
+  }
+  else {
+    $common_ancestor = $directories;
+  }
+
+  $source_files = array();
+  foreach ($directory_array as $directory) {
+    $files = file_scan_directory($directory, '.*');
+    foreach ($files as $path => $file) {
+      if ($file->basename{0} == '.') {
+        continue;
+      }
+      $file_name = substr($path, strlen($common_ancestor) + 1);
+      
+      $source_files[$path] = $file_name;
+    }
+  }
+  return $source_files;
 }
