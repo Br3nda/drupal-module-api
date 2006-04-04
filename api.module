@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.22 2006/04/04 17:13:11 JonBob Exp $
+// $Id: api.module,v 1.23 2006/04/04 17:23:28 JonBob Exp $
 
 /**
  * @file
@@ -172,7 +172,7 @@ function api_page_main() {
       '#type' => 'submit',
       '#value' => t('Look up'),
     );
-    $output .= drupal_get_form('api_page_main', $form);
+    $output .= drupal_get_form('api_page_main_'. $branch->branch_name, $form, 'api_page_main');
   }
   return $output;
 }
