@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.23.2.1 2006/04/06 02:54:23 unconed Exp $
+// $Id: api.module,v 1.23.2.2 2006/04/13 15:45:05 unconed Exp $
 
 /**
  * @file
@@ -270,7 +270,7 @@ function api_render_listing($result){
   }
 
   $output = theme('table', $headers, $rows);
-  $output .= theme('pager', NULL, 50, 0, tablesort_pager());
+  $output .= theme('pager', NULL, 50, 0);
   return $output;
 }
 
