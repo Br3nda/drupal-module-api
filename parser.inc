@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.16 2006/03/06 16:33:13 JonBob Exp $
+// $Id: parser.inc,v 1.16.2.1 2006/06/30 13:12:13 unconed Exp $
 
 /**
  * @file
@@ -116,7 +116,7 @@ function api_parse_html_file($file_path, $branch_name, $file_name) {
       'title' => strpos($file_name, '/') ? substr($file_name, strrpos($file_name, '/') + 1) : $file_name,
       'summary' => '',
       'documentation' => '',
-      'code' => '<pre>'. htmlentities($source) .'</pre>');
+      'code' => '<pre>'. htmlspecialchars($source) .'</pre>');
   $title_match = array();
   if (preg_match('!<title>(.*)</title>!is', $source, $title_match)) {
     $docblocks[0]['title'] = $title_match[1];
@@ -585,7 +585,7 @@ function api_format_php($code) {
         $in_string = FALSE;
       }
       else {
-        $output .= is_array($token) ? htmlentities($token[1]) : htmlentities($token);
+        $output .= is_array($token) ? htmlspecialchars($token[1]) : htmlspecialchars($token);
       }
       continue;
     }
@@ -597,7 +597,7 @@ function api_format_php($code) {
 
     if (is_array($token)) {
       $type = $token[0];
-      $value = htmlentities($token[1]);
+      $value = htmlspecialchars($token[1]);
 
       switch ($type) {
         // Discarded strings:
