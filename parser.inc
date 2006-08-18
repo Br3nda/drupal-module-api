@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.20 2006/08/18 20:21:02 unconed Exp $
+// $Id: parser.inc,v 1.21 2006/08/18 20:32:55 unconed Exp $
 
 /**
  * @file
@@ -475,6 +475,9 @@ function api_format_documentation($documentation, $branch_name) {
   $documentation = preg_replace('!@see ([a-zA-Z0-9_]+) (.*?) \n!', str_replace('%24', '$', l('$2', 'api/'. $branch_name .'/group/$1')), $documentation);
   $documentation = preg_replace('!@see ([a-zA-Z0-9_]+)\(\) (.*?) \n!', str_replace('%24', '$', l('$2', 'api/'. $branch_name .'/function/$1')), $documentation);
   $documentation = preg_replace('!@see ([a-zA-Z0-9_]+) (.*?) \n!', str_replace('%24', '$', l('$2', 'api/'. $branch_name .'/group/$1')), $documentation);
+  
+  // Replace left over curly braces
+  $documentation = preg_replace('!@[{}]!', '', $documentation);
 
   // Process the @code @endcode tags.
   $documentation = preg_replace_callback('!@code(.+?)@endcode!s', 'api_format_embedded_php', $documentation);
@@ -664,7 +667,7 @@ function api_format_php($code) {
 
   // Manage whitespace:
   $output = preg_replace('!([\n ]+)!se', 'api_format_php_whitespace(\'$1\')', $output);
-  return '<div class="php"><code>'. $output .'</code></div>';
+  return '<div class="php"><code>'. trim($output) .'</code></div>';
 }
 
 /**
