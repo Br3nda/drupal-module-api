@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.18 2006/08/18 19:59:38 unconed Exp $
+// $Id: parser.inc,v 1.19 2006/08/18 20:15:33 unconed Exp $
 
 /**
  * @file
@@ -476,6 +476,10 @@ function api_format_documentation($documentation, $branch_name) {
   $documentation = preg_replace('!@see ([a-zA-Z0-9_]+)\(\) (.*?) \n!', str_replace('%24', '$', l('$2', 'api/'. $branch_name .'/function/$1')), $documentation);
   $documentation = preg_replace('!@see ([a-zA-Z0-9_]+) (.*?) \n!', str_replace('%24', '$', l('$2', 'api/'. $branch_name .'/group/$1')), $documentation);
 
+  // Process the @code @endcode tags.
+  $documentation = preg_replace_callback('!@code(.+?)@endcode!', 'api_format_embedded_php', $documentation);
+
+  // Format lists
   $documentation = api_format_documentation_lists($documentation);
 
   // Convert newlines into paragraphs.
@@ -487,6 +491,13 @@ function api_format_documentation($documentation, $branch_name) {
 }
 
 /**
+ * Regexp replace callback for code tags.
+ */
+function api_format_embedded_php($matches) {
+  return "\n\n". api_format_php("<?php\n". decode_entities($matches[1]) ."\n?>") ."\n\n";
+}
+
+/*
  * Parse a block of text for lists that use hyphens or asterisks as bullets, and
  * format them as proper HTML lists.
  */
