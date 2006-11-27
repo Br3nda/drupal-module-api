@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.23.2.3 2006/08/10 02:59:08 JonBob Exp $
+// $Id: api.module,v 1.23.2.4 2006/11/27 23:10:41 kjartan Exp $
 
 /**
  * @file
@@ -161,7 +161,7 @@ function api_page_main() {
       '#type' => 'value',
       '#value' => $branch->branch_name,
     );
-    $form[$branch->branch_name]['search'] = array(
+    $form[$branch->branch_name]['search-'. $branch->branch_name] = array(
       '#title' => t('Function, file or topic name'),
       '#type' => 'textfield',
       '#autocomplete_path' => 'api/autocomplete/'. $branch->branch_name, 
@@ -178,7 +178,7 @@ function api_page_main() {
 }
 
 function api_page_main_submit($form_id, $form_values) {
-  drupal_goto('apis/'. $form_values['branch_name'] .'/'. $form_values['search']);
+  drupal_goto('apis/'. $form_values['branch_name'] .'/'. $form_values['search-'. $form_values['branch_name']]);
 }
 
 /**
@@ -703,6 +703,9 @@ function api_page_admin_submit($form_id, $form_values) {
   if($form_values['default_branch']){
     variable_set('api_default_branch', $form_values['default_branch']);
   }
+
+  // We may have menu changes, so clear the menu cache for all users.
+  cache_clear_all('menu:', TRUE);
 
   drupal_set_message(t('Changes saved.'));
 }
