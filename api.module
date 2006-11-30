@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.27 2006/11/27 23:06:42 kjartan Exp $
+// $Id: api.module,v 1.28 2006/11/30 07:13:22 thehunmonkgroup Exp $
 
 /**
  * @file
@@ -653,6 +653,11 @@ function api_page_admin() {
     '#default_value' => variable_get('api_php_funcsummary', 'http://cvs.php.net/viewcvs.cgi/*checkout*/phpdoc/funcsummary.txt'),
     '#description' => t('The URL of the PHP function summary document.'),
   );
+  $form['api_php_funcpath'] = array(
+    '#type' => 'textfield',
+    '#default_value' => variable_get('api_php_funcpath', 'http://php.net/!function'),
+    '#description' => t('The URL format used to build the link to php functions.  Use the variable <em>!function</em> in place of the function name.'),
+  );
   $form['submit'] = array(
     '#type' => 'submit',
     '#value' => t('Index PHP manual pages'),
@@ -713,6 +718,7 @@ function api_page_admin_submit($form_id, $form_values) {
 function api_php_manual_index_submit($form_id, $form_values) {
   include_once(drupal_get_path('module', 'api') .'/parser.inc');
   variable_set('api_php_funcsummary', $form_values['api_php_funcsummary']);
+  variable_set('api_php_funcpath', $form_values['api_php_funcpath']);
   db_query("DELETE FROM {api_documentation} WHERE branch_name = 'php'");
   api_parse_php_manual($form_values['api_php_funcsummary']);
   drupal_set_message(t('Manual pages scanned.'));
@@ -827,7 +833,8 @@ function api_link_name($name, $branch_name) {
     return l($name, 'api/'. $branch_name .'/constant/'. $local_objects['constant'][$name]->object_name, array('title' => $local_objects['constant'][$name]->summary, 'class' => 'local'));
   }
   else if (array_key_exists($name, $php_functions)) {
-    return '<a href="http://php.net/'. $name .'" title="'. $php_functions[$name] .'" class="php-manual">'. $name .'</a>';
+    $link = strtr(variable_get('api_php_funcpath', 'http://php.net/!function'), array('!function' => $name));
+    return '<a href="'. $link .'" title="'. $php_functions[$name] .'" class="php-manual">'. $name .'</a>';
   }
   else {
     return $name;
