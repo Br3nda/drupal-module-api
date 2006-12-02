@@ -73,15 +73,3 @@ function api_update_2() {
 
   return $ret;
 }
-
-function api_uninstall() {
-  db_query('DROP TABLE {api_branch}');
-  db_query('DROP TABLE {api_documentation}');
-  db_query('DROP TABLE {api_file}');
-  db_query('DROP TABLE {api_function}');
-  db_query('DROP TABLE {api_reference}');
-  variable_del('api_default_branch');
-  variable_del('api_php_funcsummary');
-  variable_del('api_php_funcpath');
-  variable_del('api_files_per_cron');
-}
