@@ -1,0 +1,4 @@
+; $Id: api.info,v 1.1 2006/12/02 15:13:53 thehunmonkgroup Exp $
+name = API
+description = Generates and displays API documentation pages.
+version = VERSION
