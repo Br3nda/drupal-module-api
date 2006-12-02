@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.30 2006/12/02 17:34:31 thehunmonkgroup Exp $
+// $Id: api.module,v 1.31 2006/12/02 17:56:35 thehunmonkgroup Exp $
 
 /**
  * @file
@@ -559,8 +559,8 @@ function api_page_function_references($branch_name, $object_name) {
     $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name FROM {api_reference} r INNER JOIN {api_documentation} d ON r.from_did = d.did AND d.object_type = 'function' WHERE r.to_did = %d". tablesort_sql($headers), $function->did);
     while ($reference = db_fetch_object($result)) {
       $rows[] = array(
-        l($reference->title, 'api/'. $branch_name .'/function/'. $reference->object_name),
-        l($reference->file_name, 'api/'. $branch_name .'/file/'. $reference->file_name),
+        l($reference->title, 'api/function/'. $reference->object_name .'/'. $branch_name),
+        l($reference->file_name, 'api/file/'. $reference->file_name .'/'. $branch_name),
         api_link_documentation($reference->summary, $branch_name));
     }
     if (count($rows) > 0) {
@@ -573,8 +573,8 @@ function api_page_function_references($branch_name, $object_name) {
     $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name FROM {api_reference} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'function' WHERE r.from_did = %d". tablesort_sql($headers), $function->did);
     while ($reference = db_fetch_object($result)) {
       $rows[] = array(
-        l($reference->title, 'api/'. $branch_name .'/function/'. $reference->object_name),
-        l($reference->file_name, 'api/'. $branch_name .'/file/'. $reference->file_name),
+        l($reference->title, 'api/function/'. $reference->object_name .'/'. $branch_name),
+        l($reference->file_name, 'api/file/'. $reference->file_name .'/'. $branch_name),
         api_link_documentation($reference->summary, $branch_name));
     }
     if (count($rows) > 0) {
