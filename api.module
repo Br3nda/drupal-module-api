@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.29 2006/12/02 04:44:44 thehunmonkgroup Exp $
+// $Id: api.module,v 1.30 2006/12/02 17:34:31 thehunmonkgroup Exp $
 
 /**
  * @file
@@ -32,6 +32,7 @@ function api_menu($may_cache) {
   while ($branch = db_fetch_object($result)) {
     $branches[$branch->branch_name] = $branch;
   }
+  $default_branch = variable_get('api_default_branch', 'HEAD');
 
   if ($may_cache) {
     $items[] = array(
@@ -53,28 +54,36 @@ function api_menu($may_cache) {
       'title' => t('Functions'),
       'callback' => 'api_page_listing',
       'access' => $access,
-      'callback arguments' => array(variable_get('api_default_branch', 'HEAD'), 'function'),
+      'callback arguments' => array($default_branch, 'function'),
     );
     $items[] = array(
       'path' => 'api/constants',
       'title' => t('Constants'),
       'callback' => 'api_page_listing',
       'access' => $access,
-      'callback arguments' => array(variable_get('api_default_branch', 'HEAD'), 'constant'),
+      'callback arguments' => array($default_branch, 'constant'),
+    );
+    $items[] = array(
+      'path' => 'api/file',
+      'title' => t('Files'),
+      'callback' => 'api_page_listing',
+      'access' => $access,
+      'callback arguments' => array($default_branch, 'file'),
+      'type' => MENU_CALLBACK,
     );
     $items[] = array(
       'path' => 'api/files',
       'title' => t('Files'),
       'callback' => 'api_page_listing',
       'access' => $access,
-      'callback arguments' => array(variable_get('api_default_branch', 'HEAD'), 'file'),
+      'callback arguments' => array($default_branch, 'file'),
     );
     $items[] = array(
       'path' => 'api/groups',
       'title' => t('Topics'),
       'callback' => 'api_page_listing',
       'access' => $access,
-      'callback arguments' => array(variable_get('api_default_branch', 'HEAD'), 'group'),
+      'callback arguments' => array($default_branch, 'group'),
     );
 
     foreach ($branches as $branch) {
@@ -100,7 +109,7 @@ function api_menu($may_cache) {
         'callback' => 'api_page_listing',
         'access' => $access,
         'callback arguments' => array($branch->branch_name, 'function'),
-        'type' => ($branch->branch_name == variable_get('api_default_branch', 'HEAD')) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
+        'type' => ($branch->branch_name == $default_branch) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
       );
       $items[] = array(
         'path' => 'api/constants/'. $branch->branch_name,
@@ -108,7 +117,7 @@ function api_menu($may_cache) {
         'callback' => 'api_page_listing',
         'access' => $access,
         'callback arguments' => array($branch->branch_name, 'constant'),
-        'type' => ($branch->branch_name == variable_get('api_default_branch', 'HEAD')) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
+        'type' => ($branch->branch_name == $default_branch) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
       );
       $items[] = array(
         'path' => 'api/files/'. $branch->branch_name,
@@ -116,7 +125,7 @@ function api_menu($may_cache) {
         'callback' => 'api_page_listing',
         'access' => $access,
         'callback arguments' => array($branch->branch_name, 'file'),
-        'type' => ($branch->branch_name == variable_get('api_default_branch', 'HEAD')) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
+        'type' => ($branch->branch_name == $default_branch) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
       );
       $items[] = array(
         'path' => 'api/groups/'. $branch->branch_name,
@@ -124,7 +133,7 @@ function api_menu($may_cache) {
         'callback' => 'api_page_listing',
         'access' => $access,
         'callback arguments' => array($branch->branch_name, 'group'),
-        'type' => ($branch->branch_name == variable_get('api_default_branch', 'HEAD')) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
+        'type' => ($branch->branch_name == $default_branch) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
       );
     }
 
@@ -152,20 +161,22 @@ function api_menu($may_cache) {
           'title' => t('Function'),
           'callback' => 'api_page_function',
           'access' => $access,
-          'callback arguments' => array(variable_get('api_default_branch', 'HEAD'), arg(2)),
+          'callback arguments' => array($default_branch, arg(2)),
           'type' => MENU_CALLBACK,
         );
         foreach ($branches as $branch) {
-          $items[] = array(
-            'path' => 'api/function/'. arg(2) .'/'. $branch->branch_name,
-            'title' => $branch->title,
-            'callback' => 'api_page_function',
-            'access' => $access,
-            'callback arguments' => array($branch->branch_name, arg(2)),
-            'type' => ($branch->branch_name == variable_get('api_default_branch', 'HEAD')) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
-          );
+          if (db_result(db_query("SELECT did FROM {api_documentation} WHERE object_name = '%s' AND branch_name = '%s' AND object_type = 'function'", arg(2), $branch->branch_name))) {
+            $items[] = array(
+              'path' => 'api/function/'. arg(2) .'/'. $branch->branch_name,
+              'title' => $branch->title,
+              'callback' => 'api_page_function',
+              'access' => $access,
+              'callback arguments' => array($branch->branch_name, arg(2)),
+              'type' => ($branch->branch_name == $default_branch) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
+            );
+          }
         }
-        $version = is_null(arg(3)) ? variable_get('api_default_branch', 'HEAD') : arg(3);
+        $version = is_null(arg(3)) ? $default_branch : arg(3);
         $items[] = array(
           'path' => 'api/function/'. arg(2) .'/'. $version .'/documentation',
           'title' => t('View documentation'),
@@ -183,23 +194,25 @@ function api_menu($may_cache) {
       }
 
       if (arg(1) == 'constant' && is_string(arg(2))) {
-        $items[] = array(
-          'path' => 'api/constant/'. arg(2),
-          'title' => t('Constant'),
-          'callback' => 'api_page_constant',
-          'access' => $access,
-          'callback arguments' => array(variable_get('api_default_branch', 'HEAD'), arg(2)),
-          'type' => MENU_CALLBACK,
-        );
-        foreach ($branches as $branch) {
           $items[] = array(
-            'path' => 'api/constant/'. arg(2) .'/'. $branch->branch_name,
-            'title' => $branch->title,
+            'path' => 'api/constant/'. arg(2),
+            'title' => t('Constant'),
             'callback' => 'api_page_constant',
             'access' => $access,
-            'callback arguments' => array($branch->branch_name, arg(2)),
-            'type' => ($branch->branch_name == variable_get('api_default_branch', 'HEAD')) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
+            'callback arguments' => array($default_branch, arg(2)),
+            'type' => MENU_CALLBACK,
           );
+        foreach ($branches as $branch) {
+          if (db_result(db_query("SELECT did FROM {api_documentation} WHERE object_name = '%s' AND branch_name = '%s' AND object_type = 'constant'", arg(2), $branch->branch_name))) {
+            $items[] = array(
+              'path' => 'api/constant/'. arg(2) .'/'. $branch->branch_name,
+              'title' => $branch->title,
+              'callback' => 'api_page_constant',
+              'access' => $access,
+              'callback arguments' => array($branch->branch_name, arg(2)),
+              'type' => ($branch->branch_name == $default_branch) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
+            );
+          }
         }
       }
 
@@ -210,40 +223,44 @@ function api_menu($may_cache) {
           $matches[2] .= '/'. $matches[3];
           unset($matches[3]);
         }
-        $main_url = $matches[1] . $matches[2];
-        $file_name = $matches[2];
-        $branch_name = isset($matches[3]) ? $matches[3] : variable_get('api_default_branch', 'HEAD');
+        $main_file_name = $matches[2];
+        $file_object = basename($main_file_name);
+        $branch_name = isset($matches[3]) ? $matches[3] : $default_branch;
 
-        $items[] = array(
-          'path' => $main_url,
-          'title' => t('File'),
-          'callback' => 'api_page_file',
-          'access' => $access,
-          'callback arguments' => array($branch_name, $file_name),
-          'type' => MENU_CALLBACK,
-        );
         foreach ($branches as $branch) {
-          $items[] = array(
-            'path' => $main_url .'/'. $branch->branch_name,
-            'title' => $branch->title,
-            'callback' => 'api_page_file',
-            'access' => $access,
-            'callback arguments' => array($branch->branch_name, $file_name),
-            'type' => ($branch->branch_name == variable_get('api_default_branch', 'HEAD')) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
-          );
+          if ($branch->branch_name == $branch_name) {
+            $items[] = array(
+              'path' => 'api/file/'. $main_file_name . '/'. $branch->branch_name,
+              'title' => $branch->title,
+              'callback' => 'api_page_file',
+              'access' => $access,
+              'callback arguments' => array($branch->branch_name, $main_file_name),
+              'type' => MENU_CALLBACK,
+            );
+          }
+          if ($file_name = db_result(db_query("SELECT file_name FROM {api_documentation} WHERE title = '%s' AND branch_name = '%s' AND object_type = 'file'", $file_object, $branch->branch_name))) {
+            $items[] = array(
+              'path' => 'api/file/'. $file_name. '/'. $branch->branch_name,
+              'title' => $branch->title,
+              'callback' => 'api_page_file',
+              'access' => $access,
+              'callback arguments' => array($branch->branch_name, $file_name),
+              'type' => ($branch->branch_name == $default_branch) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
+            );
+          }
         }
         $items[] = array(
-          'path' => $main_url .'/'. $branch_name.'/documentation',
+          'path' => 'api/file/'. $main_file_name .'/'. $branch_name .'/documentation',
           'title' => t('View documentation'),
           'type' => MENU_DEFAULT_LOCAL_TASK,
           'weight' => -10,
         );
         $items[] = array(
-          'path' => $main_url .'/'. $branch_name .'/source',
+          'path' => 'api/file/'. $main_file_name .'/'. $branch_name .'/source',
           'title' => t('View source'),
           'callback' => 'api_page_file_source',
           'access' => $access,
-          'callback arguments' => array($branch_name, $file_name),
+          'callback arguments' => array($branch_name, $main_file_name),
           'type' => MENU_LOCAL_TASK,
         );
       }
@@ -254,18 +271,20 @@ function api_menu($may_cache) {
           'title' => t('Topic'),
           'callback' => 'api_page_group',
           'access' => $access,
-          'callback arguments' => array(variable_get('api_default_branch', 'HEAD'), arg(2)),
+          'callback arguments' => array($default_branch, arg(2)),
           'type' => MENU_CALLBACK,
         );
         foreach ($branches as $branch) {
-          $items[] = array(
-            'path' => 'api/group/'. arg(2) .'/'. $branch->branch_name,
-            'title' => $branch->title,
-            'callback' => 'api_page_group',
-            'access' => $access,
-            'callback arguments' => array($branch->branch_name, arg(2)),
-            'type' => ($branch->branch_name == variable_get('api_default_branch', 'HEAD')) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
-          );
+          if (db_result(db_query("SELECT did FROM {api_documentation} WHERE object_name = '%s' AND branch_name = '%s' AND object_type = 'group'", arg(2), $branch->branch_name))) {
+            $items[] = array(
+              'path' => 'api/group/'. arg(2) .'/'. $branch->branch_name,
+              'title' => $branch->title,
+              'callback' => 'api_page_group',
+              'access' => $access,
+              'callback arguments' => array($branch->branch_name, arg(2)),
+              'type' => ($branch->branch_name == $default_branch) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
+            );
+          }
         }
       }
     }
