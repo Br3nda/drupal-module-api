@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.35 2006/12/03 01:53:18 thehunmonkgroup Exp $
+// $Id: api.module,v 1.36 2006/12/03 15:48:26 thehunmonkgroup Exp $
 
 /**
  * @file
@@ -953,7 +953,7 @@ function api_reindex_form() {
 
 function api_reindex_form_submit($form_id, $form_values) {
   db_query("UPDATE {api_file} SET modified = 52");
-  drupal_set_message(t('All files have been tagged for reindexing. The index will be rebuilt during the next few runs of %cron.', array('%cron' => l('cron.php','cron.php'))));
+  drupal_set_message(t('All files have been tagged for reindexing. The index will be rebuilt during the next few runs of !cron.', array('!cron' => l('cron.php', 'cron.php'))));
 }
 
 /**
