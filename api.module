@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.33 2006/12/03 00:27:21 thehunmonkgroup Exp $
+// $Id: api.module,v 1.34 2006/12/03 01:01:50 thehunmonkgroup Exp $
 
 /**
  * @file
@@ -844,6 +844,22 @@ function api_page_admin_form() {
     );
   }
 
+  $options = array(
+    10 => '10',
+    20 => '20',
+    30 => '30',
+    50 => '50',
+    100 => '100',
+    200 => '200',
+  );
+  $form['api_files_per_cron'] = array(
+    '#type' => 'select',
+    '#title' => t('Maximun files to scan per cron run'),
+    '#default_value' => variable_get('api_files_per_cron', 10),
+    '#options' => $options,
+    '#description' => t('Default is 10. It is not recommended to increase this, except temporarily if a large amount of files are to be indexed (ie, a new branch has been added).'),
+  );
+
   $form['submit'] = array(
     '#type' => 'submit',
     '#value' => t('Save changes'),
@@ -881,6 +897,9 @@ function api_page_admin_form_submit($form_id, $form_values) {
   if ($form_values['default_branch']) {
     variable_set('api_default_branch', $form_values['default_branch']);
   }
+
+  // Save the variable for max files per cron.
+  variable_set('api_files_per_cron', $form_values['api_files_per_cron']);
 
   // We may have menu changes, so clear the menu cache for all users.
   cache_clear_all('*', 'cache_menu', TRUE);
@@ -938,6 +957,7 @@ function api_cron() {
   include_once(drupal_get_path('module', 'api') .'/parser.inc');
 
   $files_scanned = 0;
+  $max_files = variable_get('api_files_per_cron', 10);
 
   db_query("UPDATE {api_file} SET found = 0");
 
@@ -945,7 +965,7 @@ function api_cron() {
   while ($branch = db_fetch_object($branches)) {
     $files = api_scan_directories($branch->directory);
     foreach ($files as $path => $file_name) {
-      if ($files_scanned >= variable_get('api_files_per_cron', 10)) {
+      if ($files_scanned >= $max_files) {
         break;
       }
 
