@@ -1,5 +1,5 @@
 <?php
-// $Id: api.install,v 1.4 2006/12/03 02:42:11 thehunmonkgroup Exp $
+// $Id: api.install,v 1.5 2006/12/03 15:42:45 thehunmonkgroup Exp $
 
 function api_install() {
   switch ($GLOBALS['db_type']) {
@@ -48,6 +48,11 @@ function api_install() {
         to_did int(10) unsigned NOT NULL default '0',
         PRIMARY KEY  (from_did,to_did)
       ) TYPE=MyISAM /*!40100 DEFAULT CHARACTER SET utf8 */;");
+
+      db_query("CREATE TABLE {api_reference_storage} (
+        reference_key text NOT NULL,
+        from_did int(10) NOT NULL default '0'
+      ) TYPE=MyISAM /*!40100 DEFAULT CHARACTER SET utf8 */;");
       break;
 
     case 'pgsql':
@@ -76,12 +81,28 @@ function api_update_2() {
   return $ret;
 }
 
+function api_update_3() {
+  $ret[] = update_sql("CREATE TABLE {api_reference_storage} (
+             reference_key text NOT NULL,
+             from_did int(10) NOT NULL default '0'
+           ) TYPE=MyISAM /*!40100 DEFAULT CHARACTER SET utf8 */;");
+
+  $reference = variable_get('api_reference', array());
+  foreach (array_keys($reference) as $key) {
+    foreach ($reference[$key] as $from_did) {
+      db_query("INSERT INTO {api_reference_storage} (reference_key, from_did) VALUES ('%s', %d)", $key, $from_did);
+    }
+  }
+  variable_del('api_reference');
+}
+
 function api_uninstall() {
-  db_query('DROP TABLE {api_branch}');
-  db_query('DROP TABLE {api_documentation}');
-  db_query('DROP TABLE {api_file}');
-  db_query('DROP TABLE {api_function}');
-  db_query('DROP TABLE {api_reference}');
+  db_query('DROP TABLE IF EXISTS {api_branch}');
+  db_query('DROP TABLE IF EXISTS {api_documentation}');
+  db_query('DROP TABLE IF EXISTS {api_file}');
+  db_query('DROP TABLE IF EXISTS {api_function}');
+  db_query('DROP TABLE IF EXISTS {api_reference}');
+  db_query('DROP TABLE IF EXISTS {api_reference_storage}');
   variable_del('api_default_branch');
   variable_del('api_php_funcsummary');
   variable_del('api_php_funcpath');

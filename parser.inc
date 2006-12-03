@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.22 2006/12/02 04:44:44 thehunmonkgroup Exp $
+// $Id: parser.inc,v 1.23 2006/12/03 15:42:45 thehunmonkgroup Exp $
 
 /**
  * @file
@@ -475,7 +475,7 @@ function api_format_documentation($documentation, $branch_name) {
   $documentation = preg_replace('!@see ([a-zA-Z0-9_]+) (.*?) \n!', str_replace('%24', '$', l('$2', 'api/group/$1/'. $branch_name)), $documentation);
   $documentation = preg_replace('!@see ([a-zA-Z0-9_]+)\(\) (.*?) \n!', str_replace('%24', '$', l('$2', 'api/function/$1/'. $branch_name)), $documentation);
   $documentation = preg_replace('!@see ([a-zA-Z0-9_]+) (.*?) \n!', str_replace('%24', '$', l('$2', 'api/group/$1/'. $branch_name)), $documentation);
-  
+
   // Replace left over curly braces
   $documentation = preg_replace('!@[{}]!', '', $documentation);
 
@@ -713,30 +713,31 @@ function api_format_php_whitespace($whitespace) {
 function api_reference($op, $branch_name = '', $to_type = '', $to_name = '', $from_did = 0) {
   static $reference = NULL;
 
-  if ($reference == NULL) {
-    $reference = variable_get('api_reference', array());
-  }
-
   switch ($op) {
     case 'save':
+      if ($reference == NULL) {
+        $reference = array();
+        $references = db_query('SELECT * FROM {api_reference_storage}');
+        while ($next_reference = db_fetch_object($references)) {
+          $reference[$next_reference->reference_key][] = $next_reference->from_did;
+        }
+      }
       foreach (array_keys($reference) as $key) {
         list($branch_name, $to_type, $to_name) = unserialize($key);
         if ($to_did = db_result(db_query("SELECT did FROM {api_documentation} WHERE object_name = '%s' AND branch_name = '%s' AND object_type = '%s'", $to_name, $branch_name, $to_type))) {
           foreach ($reference[$key] as $from_did) {
             db_query('REPLACE INTO {api_reference} (from_did, to_did) VALUES (%d, %d)', $from_did, $to_did);
           }
-          unset($reference[$key]);
+          db_query("DELETE FROM {api_reference_storage} WHERE reference_key = '%s'", $key);
         }
         else if (db_result(db_query("SELECT COUNT(*) FROM {api_documentation} WHERE object_name = '%s' AND branch_name = 'php' AND object_type = '%s'", $to_name, $to_type))) {
-          unset($reference[$key]);
+          db_query("DELETE FROM {api_reference_storage} WHERE reference_key = '%s'", $key);
         }
       }
-
-      variable_set('api_reference', $reference);
       break;
     case 'set':
       $key = serialize(array($branch_name, $to_type, $to_name));
-      $reference[$key][] = $from_did;
+      db_query("INSERT INTO {api_reference_storage} (reference_key, from_did) VALUES ('%s', %d)", $key, $from_did);
       break;
   }
 }
