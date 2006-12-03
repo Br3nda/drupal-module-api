@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.23.2.6 2006/12/02 23:55:24 thehunmonkgroup Exp $
+// $Id: api.module,v 1.23.2.7 2006/12/03 00:32:13 thehunmonkgroup Exp $
 
 /**
  * @file
@@ -62,11 +62,11 @@ function api_menu($may_cache) {
       $items[] = array('path' => 'api/'. $branch->branch_name .'/group', 'title' => t('topics'),
         'callback' => 'api_page_listing', 'access' => $access,
         'callback arguments' => array($branch->branch_name, 'group'));
-        
+
       $items[] = array('path' => 'apis', 'title' => t('api search'),
         'callback' => 'api_search_listing', 'access' => $access,
         'type' => MENU_CALLBACK);
-         
+
     }
     $items[] = array('path' => 'api/autocomplete',
         'callback' => 'api_autocomplete', 'access' => $access,
@@ -164,7 +164,7 @@ function api_page_main() {
     $form[$branch->branch_name]['search-'. $branch->branch_name] = array(
       '#title' => t('Function, file or topic name'),
       '#type' => 'textfield',
-      '#autocomplete_path' => 'api/autocomplete/'. $branch->branch_name, 
+      '#autocomplete_path' => 'api/autocomplete/'. $branch->branch_name,
       '#default_value' => '',
       '#required' => TRUE,
     );
@@ -189,7 +189,7 @@ function api_search_listing($branch_name, $search_text = ''){
     $search_text = $branch_name;
     $branch_name = variable_get('api_default_branch', 'HEAD');
   }
-  
+
   drupal_set_title(t('API Search for &ldquo;%search&rdquo; in %branch', array('%search' => $search_text, '%branch' => $branch_name)));
 
   // Exact match.
@@ -199,18 +199,18 @@ function api_search_listing($branch_name, $search_text = ''){
     $result = db_query("SELECT * FROM {api_documentation} WHERE branch_name = '%s' AND object_name LIKE '%%%s%%'", $branch_name, $search_text);
     $count = db_num_rows($result);
   };
-  
+
   switch($count){
     case 0:
       return t("Search found no results");
-      
+
     case 1:
       $item = db_fetch_object($result);
       drupal_goto("api/$item->branch_name/$item->object_type/$item->object_name");
       break;
-      
+
     default:
-      
+
       $result = pager_query("SELECT * FROM {api_documentation} WHERE branch_name = '%s' AND object_name LIKE '%%%s%%'". tablesort_sql(_api_listing_headers()), 50, 0, NULL, $branch_name, $search_text);
       return api_render_listing($result);
   }
@@ -601,9 +601,9 @@ function api_page_admin() {
       '#default_value' => $branch->directory,
       '#description' => t('The absolute path of the directory to index. Multiple paths may be given, separated by colons, e.g.: "/mysite/drupal:/mysite/developer".'),
     );
-    
+
     $radios[$branch->branch_name] = $branch->title;
-    
+
   }
 
   $form['new'] = array('#tree' => TRUE, '#type' => 'fieldset');
@@ -620,21 +620,21 @@ function api_page_admin() {
     '#type' => 'textfield',
     '#description' => t('The absolute path of the directory to index. Multiple paths may be given, separated by colons, e.g.: "/mysite/drupal:/mysite/developer".'),
   );
-  
+
   global $base_url;
-  
+
   if($radios){
     if(!variable_get('api_default_branch', FALSE)){
       list($first_key) = array_keys($radios);
       variable_set('api_default_branch', $first_key);
     }
-    
+
     $form['default_branch'] = array(
       '#type' => 'radios',
       '#title' => t('Default branch'),
       '#default_value' => variable_get('api_default_branch', $first_key),
       '#description' => t('Allows searching at %baseurl/apis/<code>your+search+here</code>', array('%baseurl' => $base_url)),
-      '#options' => $radios,     
+      '#options' => $radios,
     );
   }
 
@@ -703,7 +703,7 @@ function api_page_admin_submit($form_id, $form_values) {
       }
     }
   }
-  
+
   //save the variable for default branch
   if($form_values['default_branch']){
     variable_set('api_default_branch', $form_values['default_branch']);
@@ -823,13 +823,13 @@ function api_link_name($name, $branch_name) {
     }
   }
 
-  if (array_key_exists($name, $local_objects['function'])) {
+  if (is_array($local_objects['function']) && array_key_exists($name, $local_objects['function'])) {
     return l($name, 'api/'. $branch_name .'/function/'. $local_objects['function'][$name]->object_name, array('title' => $local_objects['function'][$name]->summary, 'class' => 'local'));
   }
-  else if (array_key_exists($name, $local_objects['file'])) {
+  else if (is_array($local_objects['file']) && array_key_exists($name, $local_objects['file'])) {
     return l($name, 'api/'. $branch_name .'/file/'. $local_objects['file'][$name]->object_name, array('title' => $local_objects['file'][$name]->summary, 'class' => 'local'));
   }
-  else if (array_key_exists($name, $local_objects['constant'])) {
+  else if (is_array($local_objects['constant']) && array_key_exists($name, $local_objects['constant'])) {
     return l($name, 'api/'. $branch_name .'/constant/'. $local_objects['constant'][$name]->object_name, array('title' => $local_objects['constant'][$name]->summary, 'class' => 'local'));
   }
   else if (array_key_exists($name, $php_functions)) {
@@ -875,7 +875,7 @@ function api_scan_directories($directories) {
         continue;
       }
       $file_name = substr($path, strlen($common_ancestor) + 1);
-      
+
       $source_files[$path] = $file_name;
     }
   }
