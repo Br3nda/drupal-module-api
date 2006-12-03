@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.32 2006/12/03 00:05:37 thehunmonkgroup Exp $
+// $Id: api.module,v 1.33 2006/12/03 00:27:21 thehunmonkgroup Exp $
 
 /**
  * @file
@@ -1025,13 +1025,13 @@ function api_link_name($name, $branch_name) {
     }
   }
 
-  if (array_key_exists($name, $local_objects['function'])) {
+  if (is_array($local_objects['function']) && array_key_exists($name, $local_objects['function'])) {
     return l($name, 'api/function/'. $local_objects['function'][$name]->object_name .'/'. $branch_name, array('title' => $local_objects['function'][$name]->summary, 'class' => 'local'));
   }
-  else if (array_key_exists($name, $local_objects['file'])) {
+  else if (is_array($local_objects['file']) && array_key_exists($name, $local_objects['file'])) {
     return l($name, 'api/file/'. $local_objects['file'][$name]->object_name .'/'. $branch_name, array('title' => $local_objects['file'][$name]->summary, 'class' => 'local'));
   }
-  else if (array_key_exists($name, $local_objects['constant'])) {
+  else if (is_array($local_objects['constant']) && array_key_exists($name, $local_objects['constant'])) {
     return l($name, 'api/constant/'. $local_objects['constant'][$name]->object_name .'/'. $branch_name, array('title' => $local_objects['constant'][$name]->summary, 'class' => 'local'));
   }
   else if (array_key_exists($name, $php_functions)) {
