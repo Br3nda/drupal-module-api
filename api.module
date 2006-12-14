@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.36 2006/12/03 15:48:26 thehunmonkgroup Exp $
+// $Id: api.module,v 1.37 2006/12/14 16:49:16 thehunmonkgroup Exp $
 
 /**
  * @file
@@ -19,6 +19,59 @@
  *   @ link
  */
 
+/**
+ * Implementation of hook_help()
+ */
+function api_help($section) {
+  switch ($section) {
+    case 'admin/help#api':
+      $output = t('
+<p>
+This is an implementation of a subset of the Doxygen documentation generator specification, tuned to produce output that best benefits the Drupal code base.
+</p>
+
+<p>
+It is designed to assume the code it documents follows Drupal coding conventions,
+and supports the following Doxygen constructs:
+<ul>
+  <li>@mainpage
+  <li>@file
+  <li>@defgroup
+  <li>@ingroup
+  <li>@addtogroup (as a synonym of @ ingroup)
+  <li>@param
+  <li>@return
+  <li>@link
+  <li>@see
+  <li>@{
+  <li>@}
+</ul>
+</p>
+
+<p>
+The module was designed to produce the Drupal developer documentation available at !api_site.
+</p>
+
+<p>
+<strong>Set up</strong>
+<p>
+
+<p>
+Visit the !api_settings_page to configure the module. You must have the relevant Drupal code base on the same machine as the site hosting the API module. Follow the descriptions in the \'Branches to index\' section to set up the code base for indexing.
+</p>
+
+<p>
+Indexing of PHP functions is also supported. If the site has internet access, then the default settings for the \'PHP Manual\' section should work fine. For local development environments that have a PHP manual installed, you can edit the paths to point to the appropriate locations.
+</p>
+
+<p>
+The module indexes code branches during cron runs, so make sure the site has cron functionality set up properly.
+</p>
+', array('!api_site' => l('http://api.drupal.org', 'http://api.drupal.org', array(), NULL, NULL, TRUE), '!api_settings_page' => l(t('API settings page'), 'admin/content/api')));
+      return $output;
+      break;
+  }
+}
 
 /**
  * Implementation of hook_menu().
@@ -801,18 +854,20 @@ function api_page_admin_form() {
     $form['branches'][$branch->branch_name]['branch_name'] = array(
       '#title' => t('Short name'),
       '#type' => 'textfield',
+      '#description' => t('The name that will appear in URL paths.'),
       '#default_value' => $branch->branch_name,
     );
     $form['branches'][$branch->branch_name]['title'] = array(
       '#title' => t('Long name'),
       '#type' => 'textfield',
+      '#description' => t('The name that will appear in menu items.'),
       '#default_value' => $branch->title,
     );
     $form['branches'][$branch->branch_name]['directory'] = array(
       '#title' => t('Directory name'),
       '#type' => 'textfield',
       '#default_value' => $branch->directory,
-      '#description' => t('The absolute path of the directory to index. Multiple paths may be given, separated by colons, e.g.: "/mysite/drupal:/mysite/developer".'),
+      '#description' => t('The absolute path of the directory to index. Multiple paths may be given, separated by colons, e.g.: "/mysite/drupal:/mysite/developer". <em>Note that the module will index recursively from the path given.</em>'),
     );
 
     $radios[$branch->branch_name] = $branch->title;
