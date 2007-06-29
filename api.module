@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.39 2007/03/12 00:54:51 thehunmonkgroup Exp $
+// $Id: api.module,v 1.40 2007/06/29 05:48:04 drumm Exp $
 
 /**
  * @file
@@ -377,10 +377,10 @@ function api_forms() {
  * Menu callback; displays a branch listing.
  */
 function api_page_main() {
-  // if you've gotten here, but there is another argument to the url
-  // we'll assume that it's a search
-  if(arg(1)){
-    if(arg(3)){
+  // If you've gotten here, but there is another argument to the url we will
+  // assume that it is a search.
+  if (arg(1)) {
+    if (arg(3)) {
       return api_search_listing(arg(2), arg(3));
     }
     else {
@@ -429,8 +429,8 @@ function api_page_main_form_submit($form_id, $form_values) {
 /**
  * Menu callback; perform a global search for documentation.
  */
-function api_search_listing($branch_name, $search_text = ''){
-  if($search_text == ''){
+function api_search_listing($branch_name, $search_text = '') {
+  if ($search_text == '') {
     $search_text = $branch_name;
     $branch_name = variable_get('api_default_branch', 'HEAD');
   }
@@ -439,19 +439,20 @@ function api_search_listing($branch_name, $search_text = ''){
 
   // Exact match.
   $result = db_query("SELECT * FROM {api_documentation} WHERE branch_name = '%s' AND object_name = '%s'", $branch_name, $search_text);
-  if (!$count = db_num_rows($result)) {
+  $count = db_num_rows($result);
+  if ($count != 1) {
     // Wildcard search.
     $result = db_query("SELECT * FROM {api_documentation} WHERE branch_name = '%s' AND object_name LIKE '%%%s%%'", $branch_name, $search_text);
     $count = db_num_rows($result);
   };
 
-  switch($count){
+  switch ($count) {
     case 0:
       return t("Search found no results");
 
     case 1:
       $item = db_fetch_object($result);
-      drupal_goto("api/$item->object_type/$item->object_name/$item->branch_name");
+      drupal_goto('api/'. $item->object_type .'/'. $item->object_name .'/'. $item->branch_name);
       break;
 
     default:
