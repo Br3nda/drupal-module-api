@@ -1,3 +1,4 @@
-; $Id: api.info,v 1.3 2007/06/18 22:53:30 dww Exp $
+; $Id: api.info,v 1.4 2007/06/29 05:44:25 drumm Exp $
 name = API
 description = Generates and displays API documentation pages.
+package = Development
