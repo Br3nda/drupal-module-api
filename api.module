@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.40 2007/06/29 05:48:04 drumm Exp $
+// $Id: api.module,v 1.41 2007/07/21 01:19:12 drumm Exp $
 
 /**
  * @file
@@ -92,14 +92,6 @@ function api_menu($may_cache) {
       'title' => t('API reference'),
       'access' => $access,
       'callback' => 'api_page_main',
-    );
-    $items[] = array(
-      'path' => 'api/search',
-      'title' => t('Search'),
-      'access' => $access,
-      'callback' => 'api_page_main',
-      'type' => MENU_DEFAULT_LOCAL_TASK,
-      'weight' => -50,
     );
     $items[] = array(
       'path' => 'api/functions',
@@ -345,6 +337,27 @@ function api_menu($may_cache) {
           }
         }
       }
+      
+      if (arg(1) == 'search' && is_string(arg(3))) {
+        $items[] = array(
+          'path' => 'api/search',
+          'title' => t('Search'),
+          'callback' => 'api_search_listing',
+          'access' => $access,
+          'type' => MENU_CALLBACK,
+        );
+        foreach ($branches as $branch) {
+          $items[] = array(
+            'path' => 'api/search/'. $branch->branch_name .'/'. arg(3),
+            'title' => $branch->title,
+            'callback' => 'api_search_listing',
+            'callback arguments' => array($branch->branch_name, arg(3)),
+            'access' => $access,
+            //'type' => ($branch->branch_name == $default_branch) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
+            'type' => MENU_LOCAL_TASK,
+          );
+        }
+      }
     }
   }
 
@@ -423,7 +436,7 @@ function api_page_main_form($branch) {
 }
 
 function api_page_main_form_submit($form_id, $form_values) {
-  drupal_goto('apis/'. $form_values['branch_name'] .'/'. $form_values['search-'. $form_values['branch_name']]);
+  drupal_goto('api/search/'. $form_values['branch_name'] .'/'. $form_values['search-'. $form_values['branch_name']]);
 }
 
 /**
