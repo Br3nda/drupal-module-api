@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.41 2007/07/21 01:19:12 drumm Exp $
+// $Id: api.module,v 1.42 2007/07/26 04:42:18 drumm Exp $
 
 /**
  * @file
@@ -72,6 +72,20 @@ The module indexes code branches during cron runs, so make sure the site has cro
   }
 }
 
+function api_get_branches() {
+  static $branches;
+
+  if (!isset($branches)) {
+    $result = db_query('SELECT branch_name, title FROM {api_branch}');
+    $branches = array();
+    while ($branch = db_fetch_object($result)) {
+      $branches[$branch->branch_name] = $branch;
+    }
+  }
+
+  return $branches;
+}
+
 /**
  * Implementation of hook_menu().
  */
@@ -79,11 +93,7 @@ function api_menu($may_cache) {
   $items = array();
   $access = user_access('access content');
 
-  $result = db_query('SELECT branch_name, title FROM {api_branch}');
-  $branches = array();
-  while ($branch = db_fetch_object($result)) {
-    $branches[$branch->branch_name] = $branch;
-  }
+  $branches = api_get_branches();
   $default_branch = variable_get('api_default_branch', 'HEAD');
 
   if ($may_cache) {
@@ -91,7 +101,8 @@ function api_menu($may_cache) {
       'path' => 'api',
       'title' => t('API reference'),
       'access' => $access,
-      'callback' => 'api_page_main',
+      'callback' => 'api_page_branch',
+      'callback arguments' => array($default_branch),
     );
     $items[] = array(
       'path' => 'api/functions',
@@ -137,7 +148,7 @@ function api_menu($may_cache) {
         'callback' => 'api_page_branch',
         'access' => $access,
         'callback arguments' => array($branch->branch_name),
-        'type' => MENU_LOCAL_TASK,
+        'type' => ($branch->branch_name == $default_branch) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
       );
       $items[] = array(
         'path' => 'api/function_dump/'. $branch->branch_name,
@@ -371,72 +382,95 @@ function api_perm() {
   return array('administer API reference');
 }
 
-/**
- * Implementation of hook_forms().
- */
-function api_forms() {
-  $result = db_query('SELECT branch_name, title FROM {api_branch}');
-  while ($branch = db_fetch_object($result)) {
-    $forms['api_page_main_form_'. $branch->branch_name] = array(
-      'callback' => 'api_page_main_form',
-      'callback arguments' => array($branch),
-    );
-  }
+function api_block($op, $delta = NULL, $edit = array()) {
+  switch ($op) {
+    case 'list':
+      return array(
+        'api-search' => array(
+          'info' => t('API search'),
+        ),
+      );
 
-  return $forms;
+    case 'view':
+      switch ($delta) {
+        case 'api-search':
+          $branches = api_get_branches();
+          $branch = api_get_active_branch();
+          $content = drupal_get_form('api_search_form', $branches[$branch]);
+          return array(
+            'subject' => t('Search @branch', array('@branch' => $branches[$branch]->title)),
+            'content' => $content,
+          );
+      }
+  }
 }
 
-/**
- * Menu callback; displays a branch listing.
- */
-function api_page_main() {
-  // If you've gotten here, but there is another argument to the url we will
-  // assume that it is a search.
-  if (arg(1)) {
-    if (arg(3)) {
-      return api_search_listing(arg(2), arg(3));
+function api_get_active_branch() {
+  if (arg(0) == 'api') {
+    if (in_array(arg(1), array('function_dump', 'functions', 'constants', 'files', 'groups', 'search'))) {
+      $possible_branch = arg(2);
+    }
+    elseif (in_array(arg(1), array('function', 'constant', 'group'))) {
+      $possible_branch = arg(3);
+    }
+    elseif (arg(1) == 'file') {
+      // Starting at arg(2), we have a variable number of directories. The
+      // possible branch name is either in the last, or, if we are on a
+      // secondary local task, second to last argument.
+      $current = arg(3);
+      $i = 4;
+      while (!is_null(arg($i))) {
+        $last = $current;
+        $current = arg($i);
+        $i += 1;
+      }
+
+      if (in_array($current, array('documentation', 'source'))) {
+        $possible_branch = $last;
+      }
+      else {
+        $possible_branch = $current;
+      }
     }
     else {
-      return api_search_listing(variable_get('api_default_branch', 'HEAD'), arg(1));
+      // Maybe we are on one of the branch home pages.
+      $possible_branch = arg(1);
     }
   }
-  $output = '';
 
-  $result = db_query('SELECT branch_name, title FROM {api_branch}');
-  while ($branch = db_fetch_object($result)) {
-    $output .= drupal_get_form('api_page_main_form_'. $branch->branch_name);
+  if (isset($possible_branch)) {
+    $branches = api_get_branches();
+    if (isset($branches[$possible_branch])) {
+      return $possible_branch;
+    }
   }
-  return $output;
+  return variable_get('api_default_branch', 'HEAD');
 }
 
-function api_page_main_form($branch) {
+function api_search_form($branch) {
   $form = array();
-  $form[$branch->branch_name] = array(
-    '#type' => 'fieldset',
-    '#title' => $branch->title,
-  );
-  $form[$branch->branch_name]['branch_name'] = array(
+
+  $form['branch_name'] = array(
     '#type' => 'value',
     '#value' => $branch->branch_name,
   );
-  $form[$branch->branch_name]['search-'. $branch->branch_name] = array(
-    '#title' => t('Function, file or topic name'),
+  $form['search'] = array(
+    '#title' => t('Function, file, or topic'),
     '#type' => 'textfield',
     '#autocomplete_path' => 'api/autocomplete/'. $branch->branch_name,
     '#default_value' => '',
     '#required' => TRUE,
   );
-  $form[$branch->branch_name]['submit'] = array(
+  $form['submit'] = array(
     '#type' => 'submit',
     '#value' => t('Look up'),
   );
-  $form['#base'] = 'api_page_main_form';
 
   return $form;
 }
 
-function api_page_main_form_submit($form_id, $form_values) {
-  drupal_goto('api/search/'. $form_values['branch_name'] .'/'. $form_values['search-'. $form_values['branch_name']]);
+function api_search_form_submit($form_id, $form_values) {
+  return 'api/search/'. $form_values['branch_name'] .'/'. $form_values['search'];
 }
 
 /**
@@ -461,7 +495,7 @@ function api_search_listing($branch_name, $search_text = '') {
 
   switch ($count) {
     case 0:
-      return t("Search found no results");
+      return t("Search found no results.");
 
     case 1:
       $item = db_fetch_object($result);
@@ -469,7 +503,6 @@ function api_search_listing($branch_name, $search_text = '') {
       break;
 
     default:
-
       $result = pager_query("SELECT * FROM {api_documentation} WHERE branch_name = '%s' AND object_name LIKE '%%%s%%'". tablesort_sql(_api_listing_headers()), 50, 0, NULL, $branch_name, $search_text);
       return api_render_listing($result);
   }
