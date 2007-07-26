@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.42 2007/07/26 04:42:18 drumm Exp $
+// $Id: api.module,v 1.43 2007/07/26 06:06:46 drumm Exp $
 
 /**
  * @file
@@ -394,12 +394,14 @@ function api_block($op, $delta = NULL, $edit = array()) {
     case 'view':
       switch ($delta) {
         case 'api-search':
+          drupal_add_css(drupal_get_path('module', 'api') .'/api.css', 'module');
+
           $branches = api_get_branches();
           $branch = api_get_active_branch();
-          $content = drupal_get_form('api_search_form', $branches[$branch]);
+
           return array(
             'subject' => t('Search @branch', array('@branch' => $branches[$branch]->title)),
-            'content' => $content,
+            'content' => drupal_get_form('api_search_form', $branches[$branch]),
           );
       }
   }
