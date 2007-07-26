@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.43 2007/07/26 06:06:46 drumm Exp $
+// $Id: api.module,v 1.44 2007/07/26 06:13:41 drumm Exp $
 
 /**
  * @file
@@ -272,12 +272,15 @@ function api_menu($may_cache) {
       }
 
       if (arg(1) == 'file' && is_string(arg(2))) {
-
-        // The file path to the file makes determining the correct menu path a bit tricky.
-        // We have to break off the beginning section of the path, then test the last part
-        // to see if it's a branch name, then build the filename/branch name from there.
+        // The file path to the file makes determining the correct menu path a
+        // bit tricky.  We have to break off the beginning section of the path,
+        // then test the last part to see if it's a branch name, then build the
+        // filename/branch name from there.
         $parts = $parts2 = explode('/', substr($_GET['q'], strlen('api/file/')));
         $last = array_pop($parts2);
+        if ($last == 'source' || $last == 'documentation') {
+          $last = array_pop($parts2);
+        }
         if (in_array($last, array_keys($branches))) {
           $main_file_name = implode('/', $parts2);
           $branch_name = $last;
