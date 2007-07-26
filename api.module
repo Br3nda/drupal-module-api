@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.44 2007/07/26 06:13:41 drumm Exp $
+// $Id: api.module,v 1.45 2007/07/26 06:26:29 drumm Exp $
 
 /**
  * @file
@@ -289,20 +289,20 @@ function api_menu($may_cache) {
           $main_file_name = implode('/', $parts);
           $branch_name = $default_branch;
         }
-        $file_object = basename($main_file_name);
 
         foreach ($branches as $branch) {
           if ($branch->branch_name == $branch_name) {
             $items[] = array(
-              'path' => 'api/file/'. $main_file_name . '/'. $branch->branch_name,
-              'title' => $branch->title,
+              'path' => 'api/file/'. $main_file_name,
+              'title' => basename($main_file_name),
               'callback' => 'api_page_file',
               'access' => $access,
               'callback arguments' => array($branch->branch_name, $main_file_name),
               'type' => MENU_CALLBACK,
             );
           }
-          if ($file_name = db_result(db_query("SELECT file_name FROM {api_documentation} WHERE title = '%s' AND branch_name = '%s' AND object_type = 'file'", $file_object, $branch->branch_name))) {
+          // Check if file path has changed in different branches.
+          if ($file_name = db_result(db_query("SELECT file_name FROM {api_documentation} WHERE title = '%s' AND branch_name = '%s' AND object_type = 'file'", basename($main_file_name), $branch->branch_name))) {
             $items[] = array(
               'path' => 'api/file/'. $file_name. '/'. $branch->branch_name,
               'title' => $branch->title,
@@ -797,7 +797,6 @@ function api_page_file($branch_name, $object_name) {
       $output .= theme('table', $headers, $rows);
     }
 
-    drupal_set_title($file->title);
     return $output;
   }
   else {
