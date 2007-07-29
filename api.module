@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.46 2007/07/26 06:33:33 drumm Exp $
+// $Id: api.module,v 1.47 2007/07/29 03:06:07 drumm Exp $
 
 /**
  * @file
@@ -110,6 +110,7 @@ function api_menu($may_cache) {
       'callback' => 'api_page_listing',
       'access' => $access,
       'callback arguments' => array($default_branch, 'function'),
+      'type' => MENU_CALLBACK,
     );
     $items[] = array(
       'path' => 'api/constants',
@@ -117,6 +118,7 @@ function api_menu($may_cache) {
       'callback' => 'api_page_listing',
       'access' => $access,
       'callback arguments' => array($default_branch, 'constant'),
+      'type' => MENU_CALLBACK,
     );
     $items[] = array(
       'path' => 'api/file',
@@ -132,6 +134,7 @@ function api_menu($may_cache) {
       'callback' => 'api_page_listing',
       'access' => $access,
       'callback arguments' => array($default_branch, 'file'),
+      'type' => MENU_CALLBACK,
     );
     $items[] = array(
       'path' => 'api/groups',
@@ -139,6 +142,7 @@ function api_menu($may_cache) {
       'callback' => 'api_page_listing',
       'access' => $access,
       'callback arguments' => array($default_branch, 'group'),
+      'type' => MENU_CALLBACK,
     );
 
     foreach ($branches as $branch) {
@@ -392,6 +396,9 @@ function api_block($op, $delta = NULL, $edit = array()) {
         'api-search' => array(
           'info' => t('API search'),
         ),
+        'navigation' => array(
+          'info' => t('API navigation'),
+        ),
       );
 
     case 'view':
@@ -405,6 +412,30 @@ function api_block($op, $delta = NULL, $edit = array()) {
           return array(
             'subject' => t('Search @branch', array('@branch' => $branches[$branch]->title)),
             'content' => drupal_get_form('api_search_form', $branches[$branch]),
+          );
+
+        case 'navigation':
+          // We forgo the menu system because we want to link to non-default
+          // local tasks; as of Drupal 5.x, this seems impossible.
+          $branches = api_get_branches();
+          $branch = api_get_active_branch();
+
+          if ($branch == variable_get('api_default_branch', 'HEAD')) {
+            $suffix = '';
+          }
+          else {
+            $suffix = '/'. $branch;
+          }
+
+          $links = array();
+          $links[] = l($branches[$branch]->title, 'api'. $suffix);
+          $links[] = l(t('Constants'), 'api/constants'. $suffix);
+          $links[] = l(t('Files'), 'api/files'. $suffix);
+          $links[] = l(t('Functions'), 'api/functions'. $suffix);
+          $links[] = l(t('Topics'), 'api/groups'. $suffix);
+
+          return array(
+            'content' => theme('item_list', $links),
           );
       }
   }
