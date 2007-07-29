@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.47 2007/07/29 03:06:07 drumm Exp $
+// $Id: api.module,v 1.48 2007/07/29 03:23:00 drumm Exp $
 
 /**
  * @file
@@ -566,7 +566,7 @@ function api_page_branch($branch_name) {
     return api_link_documentation($branch->documentation, $branch_name);
   }
   else {
-    drupal_not_found();
+    return t('A main page for this branch has not been indexed. A documentation comment with <code>@mainpage {title}</code> needs to exist, or has not been indexed yet. For Drupal core, this is availiable in the <a href="http://cvs.drupal.org/viewvc.py/drupal/contributions/docs/developer/">developer documentation</a> in the contributions repository.');
   }
 }
 
