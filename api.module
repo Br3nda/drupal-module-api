@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.48.2.1 2007/08/02 02:31:02 drumm Exp $
+// $Id: api.module,v 1.48.2.2 2007/08/02 18:22:07 drumm Exp $
 
 /**
  * @file
@@ -1030,7 +1030,13 @@ function api_page_admin_form_submit($form_id, $form_values) {
       }
       else {
         db_query("UPDATE {api_branch} SET branch_name = '%s', title = '%s', directory = '%s' WHERE branch_name = '%s'", $branch['branch_name'], $branch['title'], $branch['directory'], $branch_name);
-        db_query("UPDATE {api_documentation} SET branch_name = '%s' WHERE branch_name = '%s'", $branch['branch_name'], $branch_name);
+        if ($branch['branch_name'] != $branch_name) {
+          db_query("UPDATE {api_documentation} SET branch_name = '%s' WHERE branch_name = '%s'", $branch['branch_name'], $branch_name);
+          $result = db_query("SELECT did FROM {api_documentation} WHERE branch_name = '%s'", $branch['branch_name']);
+          while ($object = db_fetch_object($result)) {
+            db_query('UPDATE {api_file} SET modified = 52 WHERE did = %d', $object->did);
+          }
+        }
       }
     }
   }
@@ -1079,6 +1085,7 @@ function api_php_manual_index_form_submit($form_id, $form_values) {
 
 function api_reindex_form() {
   $form = array();
+
   $form['submit'] = array(
     '#type' => 'submit',
     '#value' => t('Reindex'),
