@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.48 2007/07/29 03:23:00 drumm Exp $
+// $Id: api.module,v 1.48.2.1 2007/08/02 02:31:02 drumm Exp $
 
 /**
  * @file
@@ -687,7 +687,7 @@ function api_page_function_references($branch_name, $object_name) {
     $result = db_query("SELECT d.object_name, d.title, d.summary FROM {api_reference} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'group' WHERE r.from_did = %d". tablesort_sql($headers), $function->did);
     while ($group = db_fetch_object($result)) {
       $rows[] = array(
-        l($group->title, 'api/'. $group->object_name .'/group/'. $branch_name),
+        l($group->title, 'api/group/'. $group->object_name .'/'. $branch_name),
         api_link_documentation($group->summary, $branch_name));
     }
     if (count($rows) > 0) {
@@ -754,7 +754,7 @@ function api_page_constant($branch_name, $object_name) {
     $result = db_query("SELECT d.object_name, d.title, d.summary FROM {api_reference} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'group' WHERE r.from_did = %d". tablesort_sql($headers), $constant->did);
     while ($group = db_fetch_object($result)) {
       $rows[] = array(
-        l($group->title, 'api/'. $group->object_name .'/group/'. $branch_name),
+        l($group->title, 'api/group/'. $group->object_name .'/'. $branch_name),
         api_link_documentation($group->summary, $branch_name));
     }
     if (count($rows) > 0) {
