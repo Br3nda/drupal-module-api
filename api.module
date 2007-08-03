@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.48.2.2 2007/08/02 18:22:07 drumm Exp $
+// $Id: api.module,v 1.48.2.3 2007/08/03 20:39:38 drumm Exp $
 
 /**
  * @file
@@ -499,7 +499,7 @@ function api_search_form($branch) {
   );
   $form['submit'] = array(
     '#type' => 'submit',
-    '#value' => t('Look up'),
+    '#value' => t('Search'),
   );
 
   return $form;
