@@ -1,0 +1,35 @@
+<?php
+// $Id: api_link_documentation.test,v 1.1.2.1 2007/08/03 22:14:46 drumm Exp $
+
+class ApiLinkDocumentationTest extends DrupalTestCase {
+  function get_info() {
+    return array(
+      'name' => t('api_link_documentation()'),
+      'desc' => t('Test the api_link_documentation() function.'),
+      'group' => 'API Module',
+    );
+  }
+
+  function setUp() {
+  }
+  
+  function testApiLinkDocumentation() {
+    $branch_name = variable_get('api_default_branch', 'HEAD');
+    $function_name = 'drupal_bootstrap';
+    $function_summary = db_result(db_query("SELECT summary FROM {api_documentation} WHERE branch_name = '%s' AND object_type = 'function' AND object_name = '%s'", $branch_name, $function_name));
+    $function_link = '<a href="'. url('api/function/'. $function_name .'/'. $branch_name) .'" title="'. $function_summary .'" class="local">'. $function_name .'</a>';
+
+    $tests = array(
+      array(
+        'message' => 'Function name linking',
+        'data' => $function_name .'(',
+        'expected' => $function_link .'(',
+      ),
+    );
+
+    foreach ($tests as $test) {
+      $result = api_link_documentation($test['data'], $branch_name);
+      $this->assertEqual($result, $test['expected'], $test['message']);
+    }
+  }
+}
