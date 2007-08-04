@@ -1,5 +1,5 @@
 <?php
-// $Id: api_link_documentation.test,v 1.1.2.2 2007/08/04 01:07:12 drumm Exp $
+// $Id: api_link_documentation.test,v 1.1.2.3 2007/08/04 21:30:05 drumm Exp $
 
 class ApiLinkDocumentationTest extends DrupalTestCase {
   function get_info() {
@@ -15,9 +15,15 @@ class ApiLinkDocumentationTest extends DrupalTestCase {
   
   function testApiLinkDocumentation() {
     $branch_name = variable_get('api_default_branch', 'HEAD');
+
     $function_name = 'drupal_bootstrap';
     $function_summary = db_result(db_query("SELECT summary FROM {api_documentation} WHERE branch_name = '%s' AND object_type = 'function' AND object_name = '%s'", $branch_name, $function_name));
     $function_link = '<a href="'. url('api/function/'. $function_name .'/'. $branch_name) .'" title="'. $function_summary .'" class="local">'. $function_name .'</a>';
+
+    $file_path = 'modules/system/system.module';
+    $file_name = basename($file_path);
+    $file_summary = db_result(db_query("SELECT summary FROM {api_documentation} WHERE branch_name = '%s' AND object_type = 'file' AND object_name = '%s'", $branch_name, $file_path));
+    $file_link = '<a href="'. url('api/file/'. $file_path .'/'. $branch_name) .'" title="'. $file_summary .'" class="local">'. $file_name .'</a>';
 
     $tests = array(
       // Should be linked
@@ -31,13 +37,13 @@ class ApiLinkDocumentationTest extends DrupalTestCase {
         'data' => ' '. $function_name .'(',
         'expected' => ' '. $function_link .'(',
       ),
-      array(
-        'message' => 'Function name linking with preceding non-word character',
-        'data' => '.'. $function_name .'(',
-        'expected' => '.'. $function_link .'(',
-      ),
 
       // Should not be linked
+      array(
+        'message' => 'Function name linking with preceding non-space character',
+        'data' => '.'. $function_name .'(',
+        'expected' => '.'. $function_name .'(',
+      ),
       array(
         'message' => 'Function name linking with preceding letter',
         'data' => 'a'. $function_name .'(',
@@ -52,6 +58,45 @@ class ApiLinkDocumentationTest extends DrupalTestCase {
         'message' => 'Function name linking inside a HTML tag',
         'data' => '<tag attribute="'. $function_name .'()">',
         'expected' => '<tag attribute="'. $function_name .'()">',
+      ),
+
+      // Should be linked
+      array(
+        'message' => 'File name linking',
+        'data' => $file_name,
+        'expected' => $file_link,
+      ),
+      array(
+        'message' => 'File name linking with preceding space',
+        'data' => ' '. $file_name,
+        'expected' => ' '. $file_link,
+      ),
+      array(
+        'message' => 'File name linking with following space',
+        'data' => $file_name .' ',
+        'expected' => $file_link .' ',
+      ),
+      array(
+        'message' => 'File name linking with following punctuation',
+        'data' => $file_name .'.',
+        'expected' => $file_link .'.',
+      ),
+
+      // Should not be linked
+      array(
+        'message' => 'File name linking with preceding non-space character',
+        'data' => '.'. $file_name,
+        'expected' => '.'. $file_name,
+      ),
+      array(
+        'message' => 'File name linking with preceding letter',
+        'data' => 'a'. $file_name,
+        'expected' => 'a'. $file_name,
+      ),
+      array(
+        'message' => 'File name linking inside a HTML tag',
+        'data' => '<tag attribute="'. $file_name .'">',
+        'expected' => '<tag attribute="'. $file_name .'">',
       ),
     );
 

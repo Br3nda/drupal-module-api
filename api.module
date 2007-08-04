@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.48.2.6 2007/08/04 02:46:22 drumm Exp $
+// $Id: api.module,v 1.48.2.7 2007/08/04 21:30:05 drumm Exp $
 
 /**
  * @file
@@ -1174,10 +1174,10 @@ function api_link_documentation($documentation, $branch_name) {
     }
     else {
       // Find function names, which are followed by '('
-      $split = preg_replace('!([a-zA-Z0-9_]+)\(!', '@@@$1@@@(', $split);
+      $split = preg_replace('!(?<=^|\s)([a-zA-Z0-9_]+)\(!', '@@@$1@@@(', $split);
 
       // Find file names, which are two strings joined with '.'
-      $split = preg_replace('%(?<!")[a-zA-Z0-9_]+\.[a-zA-Z0-9_]+(?!/[^"]*)(?!")%', '@@@$0@@@', $split);
+      $split = preg_replace('%(?<=^|\s)[a-zA-Z0-9_]+\.[a-zA-Z0-9_]+(?=$|\s|[.,:;?!])%', '@@@$0@@@', $split);
 
       // Attempt replacements of possibilities marked by @@@
       $split = preg_replace('!@@@([^@]*)@@@!e', 'api_link_name("$1", "'. $branch_name .'")', $split);
