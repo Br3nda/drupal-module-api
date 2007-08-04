@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.48.2.4 2007/08/03 22:14:46 drumm Exp $
+// $Id: api.module,v 1.48.2.5 2007/08/04 01:07:12 drumm Exp $
 
 /**
  * @file
@@ -1166,8 +1166,14 @@ function api_link_code($code, $branch_name) {
  */
 function api_link_documentation($documentation, $branch_name) {
   // We do the replacement in two phases to avoid linking documentation within title attributes.
-  $documentation = preg_replace('!([a-zA-Z0-9_]+)(\()!', '@@@$1@@@$2', $documentation);
+
+  // Find function names, which are followed by '('
+  $documentation = preg_replace('!([a-zA-Z0-9_]+)\(!', '@@@$1@@@(', $documentation);
+
+  // Find file names, which are two strings joined with '.'
   $documentation = preg_replace('%(?<!")[a-zA-Z0-9_]+\.[a-zA-Z0-9_]+(?!/[^"]*)(?!")%', '@@@$0@@@', $documentation);
+
+  // Attempt replacements of possibilities marked by @@@
   $documentation = preg_replace('!@@@([^@]*)@@@!e', 'api_link_name("$1", "'. $branch_name .'")', $documentation);
 
   return $documentation;
@@ -1177,33 +1183,38 @@ function api_link_documentation($documentation, $branch_name) {
  * Link an object name to its documentation.
  */
 function api_link_name($name, $branch_name) {
-  static $local_objects = array();
-  static $php_functions = array();
+  static $local_objects, $php_functions;
 
-  if (count($local_objects) == 0) {
+  if (is_null($local_objects)) {
     $result = db_query("SELECT object_name, title, object_type, summary FROM {api_documentation} WHERE branch_name = '%s'", $branch_name);
+    $local_objects = array(
+      'function' => array(),
+      'file' => array(),
+      'constant' => array(),
+    );
     while ($object = db_fetch_object($result)) {
       $local_objects[$object->object_type][$object->title] = $object;
     }
   }
 
-  if (count($php_functions) == 0) {
+  if (is_null($php_functions)) {
     $result = db_query("SELECT object_name, summary FROM {api_documentation} WHERE branch_name = 'php' AND object_type = 'function'");
+    $php_functions = array();
     while ($function = db_fetch_object($result)) {
       $php_functions[$function->object_name] = $function->summary;
     }
   }
 
-  if (is_array($local_objects['function']) && array_key_exists($name, $local_objects['function'])) {
+  if (array_key_exists($name, $local_objects['function'])) {
     return l($name, 'api/function/'. $local_objects['function'][$name]->object_name .'/'. $branch_name, array('title' => $local_objects['function'][$name]->summary, 'class' => 'local'));
   }
-  else if (is_array($local_objects['file']) && array_key_exists($name, $local_objects['file'])) {
+  elseif (array_key_exists($name, $local_objects['file'])) {
     return l($name, 'api/file/'. $local_objects['file'][$name]->object_name .'/'. $branch_name, array('title' => $local_objects['file'][$name]->summary, 'class' => 'local'));
   }
-  else if (is_array($local_objects['constant']) && array_key_exists($name, $local_objects['constant'])) {
+  elseif (array_key_exists($name, $local_objects['constant'])) {
     return l($name, 'api/constant/'. $local_objects['constant'][$name]->object_name .'/'. $branch_name, array('title' => $local_objects['constant'][$name]->summary, 'class' => 'local'));
   }
-  else if (array_key_exists($name, $php_functions)) {
+  elseif (array_key_exists($name, $php_functions)) {
     $link = strtr(variable_get('api_php_funcpath', 'http://php.net/!function'), array('!function' => $name));
     return '<a href="'. $link .'" title="'. $php_functions[$name] .'" class="php-manual">'. $name .'</a>';
   }

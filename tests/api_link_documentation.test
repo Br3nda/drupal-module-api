@@ -1,5 +1,5 @@
 <?php
-// $Id: api_link_documentation.test,v 1.1.2.1 2007/08/03 22:14:46 drumm Exp $
+// $Id: api_link_documentation.test,v 1.1.2.2 2007/08/04 01:07:12 drumm Exp $
 
 class ApiLinkDocumentationTest extends DrupalTestCase {
   function get_info() {
@@ -20,10 +20,38 @@ class ApiLinkDocumentationTest extends DrupalTestCase {
     $function_link = '<a href="'. url('api/function/'. $function_name .'/'. $branch_name) .'" title="'. $function_summary .'" class="local">'. $function_name .'</a>';
 
     $tests = array(
+      // Should be linked
       array(
         'message' => 'Function name linking',
         'data' => $function_name .'(',
         'expected' => $function_link .'(',
+      ),
+      array(
+        'message' => 'Function name linking with preceding space',
+        'data' => ' '. $function_name .'(',
+        'expected' => ' '. $function_link .'(',
+      ),
+      array(
+        'message' => 'Function name linking with preceding non-word character',
+        'data' => '.'. $function_name .'(',
+        'expected' => '.'. $function_link .'(',
+      ),
+
+      // Should not be linked
+      array(
+        'message' => 'Function name linking with preceding letter',
+        'data' => 'a'. $function_name .'(',
+        'expected' => 'a'. $function_name .'(',
+      ),
+      array(
+        'message' => 'Function name linking without parenthesis',
+        'data' => $function_name,
+        'expected' => $function_name,
+      ),
+      array(
+        'message' => 'Function name linking inside a HTML tag',
+        'data' => '<tag attribute="'. $function_name .'()">',
+        'expected' => '<tag attribute="'. $function_name .'()">',
       ),
     );
 
