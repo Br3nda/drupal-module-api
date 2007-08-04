@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.48.2.5 2007/08/04 01:07:12 drumm Exp $
+// $Id: api.module,v 1.48.2.6 2007/08/04 02:46:22 drumm Exp $
 
 /**
  * @file
@@ -1165,18 +1165,29 @@ function api_link_code($code, $branch_name) {
  * Turn function and file names into links.
  */
 function api_link_documentation($documentation, $branch_name) {
-  // We do the replacement in two phases to avoid linking documentation within title attributes.
+  $tag = false;
+  $filtered = '';
+  foreach (preg_split('/<([^>]+?)>/', $documentation, -1, PREG_SPLIT_DELIM_CAPTURE) as $split) {
+    if ($tag) {
+      // Pass through tags
+      $filtered .= '<'. $split .'>';
+    }
+    else {
+      // Find function names, which are followed by '('
+      $split = preg_replace('!([a-zA-Z0-9_]+)\(!', '@@@$1@@@(', $split);
 
-  // Find function names, which are followed by '('
-  $documentation = preg_replace('!([a-zA-Z0-9_]+)\(!', '@@@$1@@@(', $documentation);
+      // Find file names, which are two strings joined with '.'
+      $split = preg_replace('%(?<!")[a-zA-Z0-9_]+\.[a-zA-Z0-9_]+(?!/[^"]*)(?!")%', '@@@$0@@@', $split);
 
-  // Find file names, which are two strings joined with '.'
-  $documentation = preg_replace('%(?<!")[a-zA-Z0-9_]+\.[a-zA-Z0-9_]+(?!/[^"]*)(?!")%', '@@@$0@@@', $documentation);
+      // Attempt replacements of possibilities marked by @@@
+      $split = preg_replace('!@@@([^@]*)@@@!e', 'api_link_name("$1", "'. $branch_name .'")', $split);
 
-  // Attempt replacements of possibilities marked by @@@
-  $documentation = preg_replace('!@@@([^@]*)@@@!e', 'api_link_name("$1", "'. $branch_name .'")', $documentation);
+      $filtered .= $split;
+    }
+    $tag = !$tag;
+  }
 
-  return $documentation;
+  return $filtered;
 }
 
 /**
