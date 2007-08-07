@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.48.2.7 2007/08/04 21:30:05 drumm Exp $
+// $Id: api.module,v 1.48.2.8 2007/08/07 05:54:12 drumm Exp $
 
 /**
  * @file
@@ -1162,38 +1162,103 @@ function api_link_code($code, $branch_name) {
 }
 
 /**
- * Turn function and file names into links.
+ * Turn function and file names into links. This is done on output because the
+ * identifiers which are linked frequently change.
  */
 function api_link_documentation($documentation, $branch_name) {
-  $tag = false;
-  $filtered = '';
-  foreach (preg_split('/<([^>]+?)>/', $documentation, -1, PREG_SPLIT_DELIM_CAPTURE) as $split) {
-    if ($tag) {
-      // Pass through tags
-      $filtered .= '<'. $split .'>';
+  return _api_link_documentation($documentation, $branch_name, array('tags', 'function', 'file'));
+}
+
+function _api_link_documentation($documentation, $branch_name, $stages = array()) {
+  static $patterns = array(
+    // Find HTML tags, which will not be filtered.
+    'tags' => '/(<[^>]+?>)/',
+
+    // Find function names, which are preceded by white space and followed by
+    // '('.
+    'function' => '!(?<=^|\s)([a-zA-Z0-9_]+)\(!',
+
+    // Find file names, which are two strings joined with '.'
+    'file' => '%(?<=^|\s)([a-zA-Z0-9_]+\.[a-zA-Z0-9_]+)(?=$|\s|[.,:;?!])%e',
+  );
+  $stage = array_shift($stages);
+
+  if ($stage == 'tags') {
+    $callback_match = NULL;
+  }
+  else {
+    $callback_match = 'api_link_name';
+    if ($stage == 'function') {
+      $append = '(';
     }
     else {
-      // Find function names, which are followed by '('
-      $split = preg_replace('!(?<=^|\s)([a-zA-Z0-9_]+)\(!', '@@@$1@@@(', $split);
-
-      // Find file names, which are two strings joined with '.'
-      $split = preg_replace('%(?<=^|\s)[a-zA-Z0-9_]+\.[a-zA-Z0-9_]+(?=$|\s|[.,:;?!])%', '@@@$0@@@', $split);
-
-      // Attempt replacements of possibilities marked by @@@
-      $split = preg_replace('!@@@([^@]*)@@@!e', 'api_link_name("$1", "'. $branch_name .'")', $split);
-
-      $filtered .= $split;
+      $append = '';
     }
-    $tag = !$tag;
   }
 
-  return $filtered;
+  if (count($stages) > 0) {
+    $callback = '_api_link_documentation';
+  }
+  else {
+    $callback = NULL;
+  }
+
+  return api_split($patterns[$stage], $documentation, $callback_match, array($branch_name, $append), $callback, array($branch_name, $stages));
+}
+
+/**
+ * Split a string using a regular expression and process the text using
+ * callbacks.
+ *
+ * @param $pattern
+ *   The regular expression to match for splitting.
+ * @param $subject
+ *   The string to process.
+ * @param $callback_match
+ *   Function name to be called for text which matches $pattern. The first
+ *   argument will be the parenthesized expression in the pattern. Should
+ *   return a string. NULL to pass the text through unchanged.
+ * @param $callback_match_arguments
+ *   An array of additional parameters for $callback_match.
+ * @param $callback
+ *   Function name to be called for text which does not match $pattern. The
+ *   first argument will be the text. Should return a string. NULL to pass the
+ *   text through unchanged.
+ * @param $callback_arguments
+ *   An array of additional parameters for $callback.
+ * @return
+ *   The original string, with both matched and unmatched portions filtered by
+ *   the appropriate callbacks.
+ */
+function api_split($pattern, $subject, $callback_match = NULL, $callback_match_arguments = array(), $callback = NULL, $callback_arguments = array()) {
+  $return = '';
+  $matched = false;
+  foreach (preg_split($pattern, $subject, -1, PREG_SPLIT_DELIM_CAPTURE) as $part) {
+    if ($matched) {
+      if (is_null($callback_match)) {
+        $return .= $part;
+      }
+      else {
+        $return .= call_user_func_array($callback_match, array_merge(array($part), $callback_match_arguments));
+      }
+    }
+    else {
+      if (is_null($callback)) {
+        $return .= $part;
+      }
+      else {
+        $return .= call_user_func_array($callback, array_merge(array($part), $callback_arguments));
+      }
+    }
+    $matched = !$matched;
+  }
+  return $return;
 }
 
 /**
  * Link an object name to its documentation.
  */
-function api_link_name($name, $branch_name) {
+function api_link_name($name, $branch_name, $append = '') {
   static $local_objects, $php_functions;
 
   if (is_null($local_objects)) {
@@ -1217,7 +1282,7 @@ function api_link_name($name, $branch_name) {
   }
 
   if (array_key_exists($name, $local_objects['function'])) {
-    return l($name, 'api/function/'. $local_objects['function'][$name]->object_name .'/'. $branch_name, array('title' => $local_objects['function'][$name]->summary, 'class' => 'local'));
+    return l($name, 'api/function/'. $local_objects['function'][$name]->object_name .'/'. $branch_name, array('title' => $local_objects['function'][$name]->summary, 'class' => 'local')) . $append;
   }
   elseif (array_key_exists($name, $local_objects['file'])) {
     return l($name, 'api/file/'. $local_objects['file'][$name]->object_name .'/'. $branch_name, array('title' => $local_objects['file'][$name]->summary, 'class' => 'local'));
@@ -1230,7 +1295,7 @@ function api_link_name($name, $branch_name) {
     return '<a href="'. $link .'" title="'. $php_functions[$name] .'" class="php-manual">'. $name .'</a>';
   }
   else {
-    return $name;
+    return $name . $append;
   }
 }
 
