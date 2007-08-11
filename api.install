@@ -1,5 +1,5 @@
 <?php
-// $Id: api.install,v 1.5 2006/12/03 15:42:45 thehunmonkgroup Exp $
+// $Id: api.install,v 1.5.2.1 2007/08/11 00:39:53 drumm Exp $
 
 function api_install() {
   switch ($GLOBALS['db_type']) {
@@ -83,9 +83,9 @@ function api_update_2() {
 
 function api_update_3() {
   $ret[] = update_sql("CREATE TABLE {api_reference_storage} (
-             reference_key text NOT NULL,
-             from_did int(10) NOT NULL default '0'
-           ) TYPE=MyISAM /*!40100 DEFAULT CHARACTER SET utf8 */;");
+    reference_key text NOT NULL,
+    from_did int(10) NOT NULL default '0'
+  ) TYPE=MyISAM /*!40100 DEFAULT CHARACTER SET utf8 */;");
 
   $reference = variable_get('api_reference', array());
   foreach (array_keys($reference) as $key) {
