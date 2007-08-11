@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.48.2.9 2007/08/11 00:21:36 drumm Exp $
+// $Id: api.module,v 1.48.2.10 2007/08/11 00:28:01 drumm Exp $
 
 /**
  * @file
@@ -91,7 +91,7 @@ function api_get_branches() {
  */
 function api_menu($may_cache) {
   $items = array();
-  $access = user_access('access content');
+  $access = user_access('access API reference');
 
   $branches = api_get_branches();
   $default_branch = variable_get('api_default_branch', 'HEAD');
@@ -386,7 +386,7 @@ function api_menu($may_cache) {
  * Implementation of hook_perm().
  */
 function api_perm() {
-  return array('administer API reference');
+  return array('access API reference', 'administer API reference');
 }
 
 function api_block($op, $delta = NULL, $edit = array()) {
