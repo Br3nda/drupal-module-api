@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.48.2.10 2007/08/11 00:28:01 drumm Exp $
+// $Id: api.module,v 1.48.2.11 2007/08/11 01:36:30 drumm Exp $
 
 /**
  * @file
@@ -1156,9 +1156,7 @@ function api_cron() {
  * Turn function names into links.
  */
 function api_link_code($code, $branch_name) {
-  $code = preg_replace('!(<span class="php-function-or-constant">)([a-zA-Z0-9_]+)(</span>)!e', '"$1". api_link_name("$2", "'. $branch_name .'") ."$3"', $code);
-
-  return $code;
+  return _api_link_documentation($code, $branch_name, array('code function'));
 }
 
 /**
@@ -1178,22 +1176,31 @@ function _api_link_documentation($documentation, $branch_name, $stages = array()
     // '('.
     'function' => '!(?<=^|\s)([a-zA-Z0-9_]+)\(!',
 
+    // Find function names in marked-up code.
+    'code function' => '!<span class="php-function-or-constant">([a-zA-Z0-9_]+)</span>!',
+
     // Find file names, which are two strings joined with '.'
     'file' => '%(?<=^|\s)([a-zA-Z0-9_]+\.[a-zA-Z0-9_]+)(?=$|\s|[.,:;?!])%e',
   );
   $stage = array_shift($stages);
 
-  if ($stage == 'tags') {
-    $callback_match = NULL;
-  }
-  else {
-    $callback_match = 'api_link_name';
-    if ($stage == 'function') {
+  $callback_match = 'api_link_name';
+  $prepend = '';
+  $append = '';
+
+  switch ($stage) {
+    case 'tags':
+      $callback_match = NULL;
+      break;
+
+    case 'function':
       $append = '(';
-    }
-    else {
-      $append = '';
-    }
+      break;
+
+    case 'code function':
+      $prepend = '<span class="php-function-or-constant">';
+      $append = '</span>';
+      break;
   }
 
   if (count($stages) > 0) {
@@ -1203,7 +1210,7 @@ function _api_link_documentation($documentation, $branch_name, $stages = array()
     $callback = NULL;
   }
 
-  return api_split($patterns[$stage], $documentation, $callback_match, array($branch_name, $append), $callback, array($branch_name, $stages));
+  return api_split($patterns[$stage], $documentation, $callback_match, array($branch_name, $prepend, $append), $callback, array($branch_name, $stages));
 }
 
 /**
@@ -1258,7 +1265,7 @@ function api_split($pattern, $subject, $callback_match = NULL, $callback_match_a
 /**
  * Link an object name to its documentation.
  */
-function api_link_name($name, $branch_name, $append = '') {
+function api_link_name($name, $branch_name, $prepend = '', $append = '') {
   static $local_objects, $php_functions;
 
   if (is_null($local_objects)) {
@@ -1282,7 +1289,7 @@ function api_link_name($name, $branch_name, $append = '') {
   }
 
   if (array_key_exists($name, $local_objects['function'])) {
-    return l($name, 'api/function/'. $local_objects['function'][$name]->object_name .'/'. $branch_name, array('title' => $local_objects['function'][$name]->summary, 'class' => 'local')) . $append;
+    return $prepend . l($name, 'api/function/'. $local_objects['function'][$name]->object_name .'/'. $branch_name, array('title' => $local_objects['function'][$name]->summary, 'class' => 'local')) . $append;
   }
   elseif (array_key_exists($name, $local_objects['file'])) {
     return l($name, 'api/file/'. $local_objects['file'][$name]->object_name .'/'. $branch_name, array('title' => $local_objects['file'][$name]->summary, 'class' => 'local'));
@@ -1295,7 +1302,7 @@ function api_link_name($name, $branch_name, $append = '') {
     return '<a href="'. $link .'" title="'. $php_functions[$name] .'" class="php-manual">'. $name .'</a>';
   }
   else {
-    return $name . $append;
+    return $prepend . $name . $append;
   }
 }
 
