@@ -1,0 +1,54 @@
+<?php
+// $Id: api_link_code.test,v 1.1.2.1 2007/08/11 01:06:18 drumm Exp $
+
+class ApiLinkCodeTest extends DrupalTestCase {
+  function get_info() {
+    return array(
+      'name' => t('api_link_code()'),
+      'desc' => t('Test the api_link_code() function.'),
+      'group' => 'API Module',
+    );
+  }
+
+  function setUp() {
+  }
+  
+  function testApiLinkCode() {
+    $branch_name = variable_get('api_default_branch', 'HEAD');
+
+    $function_name = 'drupal_bootstrap';
+    $function_summary = db_result(db_query("SELECT summary FROM {api_documentation} WHERE branch_name = '%s' AND object_type = 'function' AND object_name = '%s'", $branch_name, $function_name));
+    $function_link = '<a href="'. url('api/function/'. $function_name .'/'. $branch_name) .'" title="'. $function_summary .'" class="local">'. $function_name .'</a>';
+
+    $file_path = 'modules/system/system.module';
+    $file_name = basename($file_path);
+    $file_summary = db_result(db_query("SELECT summary FROM {api_documentation} WHERE branch_name = '%s' AND object_type = 'file' AND object_name = '%s'", $branch_name, $file_path));
+    $file_link = '<a href="'. url('api/file/'. $file_path .'/'. $branch_name) .'" title="'. $file_summary .'" class="local">'. $file_name .'</a>';
+
+    $tests = array(
+      // Should be linked
+      array(
+        'message' => 'Marked-up function name linking',
+        'data' => '<span class="php-function-or-constant">'. $function_name .'</span>',
+        'expected' => '<span class="php-function-or-constant">'. $function_link .'</span>',
+      ),
+
+      // Should not be linked
+      array(
+        'message' => 'Function name linking',
+        'data' => $function_name,
+        'expected' => $function_name,
+      ),
+      array(
+        'message' => 'Function name linking with (',
+        'data' => $function_name .'(',
+        'expected' => $function_name .'(',
+      ),
+    );
+
+    foreach ($tests as $test) {
+      $result = api_link_code($test['data'], $branch_name);
+      $this->assertEqual($result, $test['expected'], $test['message']);
+    }
+  }
+}
