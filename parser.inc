@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.24 2007/07/26 06:39:00 drumm Exp $
+// $Id: parser.inc,v 1.24.2.1 2007/09/03 23:56:55 drumm Exp $
 
 /**
  * @file
@@ -666,41 +666,7 @@ function api_format_php($code) {
   }
 
   // Manage whitespace:
-  $output = preg_replace('!([\n ]+)!se', 'api_format_php_whitespace(\'$1\')', $output);
-  return '<div class="php"><code>'. trim($output) .'</code></div>';
-}
-
-/**
- * Given a run of whitespace, convert it into nonbreaking spaces and forced line
- * breaks as necessary to preserve it in the resulting HTML.
- */
-function api_format_php_whitespace($whitespace) {
-  $output = '';
-  $breakingspace = 1;
-  $runlength = 0;
-  for ($i = 0; $i < strlen($whitespace); $i++) {
-    if ($whitespace{$i} == "\n") {
-      for ($j = 0; $j < $runlength - $breakingspace; $j++) {
-        $output .= '&nbsp;';
-      }
-      if ($breakingspace) {
-        $output .= ' ';
-      }
-      $output .= "<br />\n";
-      $breakingspace = 0;
-    }
-    else {
-      $runlength++;
-    }
-  }
-  for ($j = 0; $j < $runlength - $breakingspace; $j++) {
-    $output .= '&nbsp;';
-  }
-  if ($breakingspace) {
-    $output .= ' ';
-  }
-
-  return $output;
+  return '<pre class="php"><code>'. trim($output) .'</code></pre>';
 }
 
 /**
@@ -735,6 +701,7 @@ function api_reference($op, $branch_name = '', $to_type = '', $to_name = '', $fr
         }
       }
       break;
+
     case 'set':
       $key = serialize(array($branch_name, $to_type, $to_name));
       db_query("INSERT INTO {api_reference_storage} (reference_key, from_did) VALUES ('%s', %d)", $key, $from_did);
