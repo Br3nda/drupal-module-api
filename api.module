@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.48.2.11 2007/08/11 01:36:30 drumm Exp $
+// $Id: api.module,v 1.48.2.12 2007/09/03 23:26:14 drumm Exp $
 
 /**
  * @file
@@ -1137,7 +1137,7 @@ function api_cron() {
   if ($files_scanned == 0) {
     $result = db_query("SELECT ad.file_name, ad.branch_name FROM {api_file} af LEFT JOIN {api_documentation} ad ON ad.did = af.did WHERE af.found = 0");
     while ($file = db_fetch_object($result)) {
-      print ('Removing '. $file->file_name .'...<br />');
+      watchdog('api', t('Removing %file', array('%file' => $file->file_name)));
       $doc_result = db_query("SELECT ad.did FROM {api_documentation} ad WHERE ad.file_name = '%s' AND ad.branch_name = '%s'", $file->file_name, $file->branch_name);
       while ($doc = db_fetch_object($doc_result)) {
         db_query("DELETE FROM {api_documentation} WHERE did = %d", $doc->did);
