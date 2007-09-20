@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.48.2.13 2007/09/07 17:35:29 drumm Exp $
+// $Id: api.module,v 1.48.2.14 2007/09/20 13:49:17 drumm Exp $
 
 /**
  * @file
@@ -308,7 +308,7 @@ function api_menu($may_cache) {
           // Check if file path has changed in different branches.
           if ($file_name = db_result(db_query("SELECT file_name FROM {api_documentation} WHERE title = '%s' AND branch_name = '%s' AND object_type = 'file'", basename($main_file_name), $branch->branch_name))) {
             $items[] = array(
-              'path' => 'api/file/'. $file_name. '/'. $branch->branch_name,
+              'path' => 'api/file/'. $file_name .'/'. $branch->branch_name,
               'title' => $branch->title,
               'callback' => 'api_page_file',
               'access' => $access,
@@ -547,7 +547,7 @@ function api_search_listing($branch_name, $search_text = '') {
 /**
  * Prepare a listing of potential documentation matches for a branch.
  */
-function api_autocomplete($branch_name, $search){
+function api_autocomplete($branch_name, $search) {
   $matches = array();
   $result = db_query("SELECT object_name FROM {api_documentation} WHERE object_name LIKE '%%%s%%' AND branch_name = '%s' ORDER BY LENGTH(object_name) LIMIT 20", $search, $branch_name);
   while ($r = db_fetch_object($result)) {
@@ -578,7 +578,7 @@ function api_page_listing($branch_name, $object_type) {
   return api_render_listing($result);
 }
 
-function _api_listing_headers(){
+function _api_listing_headers() {
   $headers = array();
   $headers[] = array('data' => t('Name'), 'field' => 'title');
   $headers[] = array('data' => t('Location'), 'field' => 'file_name');
@@ -589,7 +589,7 @@ function _api_listing_headers(){
 /**
  * Render a table with an overview of documentation objects.
  */
-function api_render_listing($result){
+function api_render_listing($result) {
   $headers = _api_listing_headers();
 
   $rows = array();
@@ -907,7 +907,7 @@ function api_page_group($branch_name, $object_name) {
 function api_page_admin() {
   $output = '';
 
-  $output .= '<h3>'. t('Branches to index'). '</h3>';
+  $output .= '<h3>'. t('Branches to index') .'</h3>';
   $output .= drupal_get_form('api_page_admin_form');
 
   $output .= '<h3>'. t('PHP Manual') .'</h3>';
@@ -1352,6 +1352,6 @@ function api_scan_directories($directories) {
 }
 
 function api_simpletest() {
-	$dir = drupal_get_path('module', 'api'). '/tests';
+  $dir = drupal_get_path('module', 'api') .'/tests';
   return array_keys(file_scan_directory($dir, '\.test$'));
 }

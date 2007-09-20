@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.24.2.1 2007/09/03 23:56:55 drumm Exp $
+// $Id: parser.inc,v 1.24.2.2 2007/09/20 13:49:17 drumm Exp $
 
 /**
  * @file
@@ -161,8 +161,8 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
   $source = file_get_contents($file_path);
 
   // Convert Mac/Win line breaks to Unix format.
-  $source = str_replace("\r\n","\n", $source);
-  $source = str_replace("\r","\n", $source);
+  $source = str_replace("\r\n", "\n", $source);
+  $source = str_replace("\r", "\n", $source);
 
   $docblock_matches = array();
   $docblocks = array();
@@ -235,7 +235,7 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
       $return_matches = array();
       $docblock['return'] = '';
       preg_match_all('!@return(.*?)(\n@|\n\n|$)!s', $docblock['content'], $return_matches, PREG_SET_ORDER);
-      foreach($return_matches as $return_match) {
+      foreach ($return_matches as $return_match) {
         $docblock['content'] = str_replace($return_match[0], '', $docblock['content']);
         $docblock['return'] .= "\n\n". $return_match[1];
       }
@@ -245,7 +245,7 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
       $function_call_matches = array();
       $docblock['function calls'] = array();
       preg_match_all('!<span class="php-function-or-constant">([a-zA-Z0-9_]+)</span>\(!', substr($docblock['code'], strlen('<div class="php"><code><span class="php-keyword">function</span> <span class="php-function-or-constant">')), $function_call_matches, PREG_SET_ORDER);
-      foreach($function_call_matches as $function_call_match) {
+      foreach ($function_call_matches as $function_call_match) {
         $docblock['function calls'][$function_call_match[1]] = $function_call_match[1];
       }
 
@@ -589,7 +589,7 @@ function api_format_php($code) {
 
   $in_string = FALSE;
 
-  foreach($tokens as $token) {
+  foreach ($tokens as $token) {
     if ($in_string) {
       if ($token == '"') {
         $output .= '"</span>';
@@ -708,5 +708,3 @@ function api_reference($op, $branch_name = '', $to_type = '', $to_name = '', $fr
       break;
   }
 }
-
-?>
