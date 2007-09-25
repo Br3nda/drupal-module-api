@@ -1,5 +1,5 @@
 <?php
-// $Id: api.install,v 1.5.2.2 2007/08/11 00:48:22 drumm Exp $
+// $Id: api.install,v 1.5.2.3 2007/09/25 20:11:48 drumm Exp $
 
 function api_install() {
   switch ($GLOBALS['db_type']) {
@@ -24,7 +24,8 @@ function api_install() {
         code mediumtext NOT NULL,
         PRIMARY KEY  (did),
         UNIQUE KEY object_name (object_name,branch_name,object_type),
-        INDEX (branch_name)
+        INDEX (branch_name),
+        INDEX (title)
       ) TYPE=MyISAM /*!40100 DEFAULT CHARACTER SET utf8 */;");
 
       db_query("CREATE TABLE {api_file} (
@@ -104,6 +105,19 @@ function api_update_4() {
     case 'mysql':
     case 'mysqli':
       $return[] = update_sql('ALTER TABLE {api_documentation} ADD INDEX (branch_name)');
+      break;
+  }
+
+  return $return;
+}
+
+function api_update_5() {
+  $return = array();
+
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      $return[] = update_sql('ALTER TABLE {api_documentation} ADD INDEX (title)');
       break;
   }
 

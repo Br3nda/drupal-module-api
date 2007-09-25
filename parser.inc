@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.24.2.2 2007/09/20 13:49:17 drumm Exp $
+// $Id: parser.inc,v 1.24.2.3 2007/09/25 20:11:48 drumm Exp $
 
 /**
  * @file
@@ -471,10 +471,8 @@ function api_format_documentation($documentation, $branch_name) {
   $documentation = preg_replace('!@link ([a-zA-Z0-9_]+)\(\) (.*?) @endlink!', str_replace('%24', '$', l('$2', 'api/function/$1/'. $branch_name)), $documentation);
   $documentation = preg_replace('!@link ([a-zA-Z0-9_]+) (.*?) @endlink!', str_replace('%24', '$', l('$2', 'api/group/$1/'. $branch_name)), $documentation);
 
-  // Process the @see tag.
-  $documentation = preg_replace('!@see ([a-zA-Z0-9_]+) (.*?) \n!', str_replace('%24', '$', l('$2', 'api/group/$1/'. $branch_name)), $documentation);
-  $documentation = preg_replace('!@see ([a-zA-Z0-9_]+)\(\) (.*?) \n!', str_replace('%24', '$', l('$2', 'api/function/$1/'. $branch_name)), $documentation);
-  $documentation = preg_replace('!@see ([a-zA-Z0-9_]+) (.*?) \n!', str_replace('%24', '$', l('$2', 'api/group/$1/'. $branch_name)), $documentation);
+  // Process the @see tag
+  $documentation = preg_replace('!\n@see (.*[^.])\.?!', '<h3>See also</h3><p>$1</p>', $documentation);
 
   // Replace left over curly braces
   $documentation = preg_replace('!@[{}]!', '', $documentation);
@@ -611,9 +609,9 @@ function api_format_php($code) {
       $value = htmlspecialchars($token[1]);
 
       switch ($type) {
-        // Discarded strings:
         case T_OPEN_TAG:
         case T_CLOSE_TAG:
+          $output .= '<span class="php-boundry">'. $value .'</span>';
           break;
 
         case T_COMMENT:

@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.48.2.14 2007/09/20 13:49:17 drumm Exp $
+// $Id: api.module,v 1.48.2.15 2007/09/25 20:11:48 drumm Exp $
 
 /**
  * @file
@@ -521,13 +521,13 @@ function api_search_listing($branch_name, $search_text = '') {
   drupal_set_title(t('API Search for &ldquo;%search&rdquo; in %branch', array('%search' => $search_text, '%branch' => $branch_name)));
 
   // Exact match.
-  $result = db_query("SELECT * FROM {api_documentation} WHERE branch_name = '%s' AND object_name = '%s'", $branch_name, $search_text);
+  $result = db_query("SELECT * FROM {api_documentation} WHERE branch_name = '%s' AND title = '%s'", $branch_name, $search_text);
   $count = db_num_rows($result);
   if ($count != 1) {
     // Wildcard search.
-    $result = db_query("SELECT * FROM {api_documentation} WHERE branch_name = '%s' AND object_name LIKE '%%%s%%'", $branch_name, $search_text);
+    $result = db_query("SELECT * FROM {api_documentation} WHERE branch_name = '%s' AND title LIKE '%%%s%%'", $branch_name, $search_text);
     $count = db_num_rows($result);
-  };
+  }
 
   switch ($count) {
     case 0:
@@ -549,9 +549,9 @@ function api_search_listing($branch_name, $search_text = '') {
  */
 function api_autocomplete($branch_name, $search) {
   $matches = array();
-  $result = db_query("SELECT object_name FROM {api_documentation} WHERE object_name LIKE '%%%s%%' AND branch_name = '%s' ORDER BY LENGTH(object_name) LIMIT 20", $search, $branch_name);
+  $result = db_query("SELECT title FROM {api_documentation} WHERE title LIKE '%%%s%%' AND branch_name = '%s' ORDER BY LENGTH(title) LIMIT 20", $search, $branch_name);
   while ($r = db_fetch_object($result)) {
-    $matches[$r->object_name] = check_plain($r->object_name);
+    $matches[$r->title] = check_plain($r->title);
   }
   print drupal_to_js($matches);
   exit();
@@ -1183,8 +1183,9 @@ function _api_link_documentation($documentation, $branch_name, $stages = array()
     // Find function names in marked-up code.
     'code function' => '!<span class="php-function-or-constant">([a-zA-Z0-9_]+)</span>!',
 
-    // Find file names, which are two strings joined with '.'
-    'file' => '%(?<=^|\s)([a-zA-Z0-9_]+\.[a-zA-Z0-9_]+)(?=$|\s|[.,:;?!])%e',
+    // Find file names, which are an arbitrary number of strings joined with
+    // '.'
+    'file' => '%(?<=^|\s)([a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)+)(?=$|\s|[.,:;?!])%e',
   );
   $stage = array_shift($stages);
 
