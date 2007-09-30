@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.24.2.3 2007/09/25 20:11:48 drumm Exp $
+// $Id: parser.inc,v 1.24.2.4 2007/09/30 02:18:33 drumm Exp $
 
 /**
  * @file
@@ -34,7 +34,7 @@ function api_parse_php_manual($location) {
  * for parsing.
  */
 function api_parse_file($file_path, $branch_name, $file_name) {
-  if (preg_match('!\.(php|module|inc|engine|theme)$!', $file_name)) {
+  if (preg_match('!\.(php|module|inc|install|engine|theme)$!', $file_name)) {
     watchdog('api', t('Parsing %path...', array('%path' => $file_path)));
     api_parse_php_file($file_path, $branch_name, $file_name);
     return TRUE;
