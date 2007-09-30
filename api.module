@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.48.2.15 2007/09/25 20:11:48 drumm Exp $
+// $Id: api.module,v 1.48.2.16 2007/09/30 03:07:26 drumm Exp $
 
 /**
  * @file
@@ -1146,14 +1146,17 @@ function api_cron() {
         db_query("DELETE FROM {api_reference} WHERE from_did = %d OR to_did = %d", $doc->did, $doc->did);
       }
     }
+    // Clean out any references that couldn't be linked (References to PHP functions, etc.)
+    db_query('DELETE FROM {api_reference_storage}');
   }
-  else {
+
+  // Update any references that were resolved during this run.
+  api_update_references();
+
+  if ($files_scanned != 0) {
     // Some files were updated, so clear the page cache
     cache_clear_all();
   }
-
-  // Ensure that reference updates persist until the next cron run.
-  api_reference('save');
 }
 
 /**

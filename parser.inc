@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.24.2.4 2007/09/30 02:18:33 drumm Exp $
+// $Id: parser.inc,v 1.24.2.5 2007/09/30 03:07:26 drumm Exp $
 
 /**
  * @file
@@ -434,7 +434,7 @@ function api_save_documentation(&$docblock) {
 
       if (is_array($docblock['function calls'])) {
         foreach ($docblock['function calls'] as $function_name) {
-          api_reference('set', $docblock['branch_name'], 'function', $function_name, $did);
+          api_reference($docblock['branch_name'], 'function', $function_name, $did);
         }
       }
       break;
@@ -447,7 +447,7 @@ function api_save_documentation(&$docblock) {
 
   if (is_array($docblock['groups'])) {
     foreach ($docblock['groups'] as $group_name) {
-      api_reference('set', $docblock['branch_name'], 'group', $group_name, $did);
+      api_reference($docblock['branch_name'], 'group', $group_name, $did);
     }
   }
 
@@ -669,40 +669,22 @@ function api_format_php($code) {
 
 /**
  * Since we may parse a file containing a reference before we have parsed the
- * file containing the referenced object, we manage all references internally
- * in an array and store the array in a Drupal persistent variable. Then we can
- * save the references to the database table when the referenced object has
- * been parsed.
+ * file containing the referenced object, we keep track of the references
+ * using a scratch table and save the references to the database table after the
+ * referenced object has been parsed.
  */
-function api_reference($op, $branch_name = '', $to_type = '', $to_name = '', $from_did = 0) {
-  static $reference = NULL;
+function api_reference($branch_name, $to_type, $to_name, $from_did) {
+  db_query("INSERT INTO {api_reference_storage} (object_name, branch_name, object_type, from_did) VALUES ('%s', '%s', '%s', %d)", $to_name, $branch_name, $to_type, $from_did);
+}
 
-  switch ($op) {
-    case 'save':
-      if ($reference == NULL) {
-        $reference = array();
-        $references = db_query('SELECT * FROM {api_reference_storage}');
-        while ($next_reference = db_fetch_object($references)) {
-          $reference[$next_reference->reference_key][] = $next_reference->from_did;
-        }
-      }
-      foreach (array_keys($reference) as $key) {
-        list($branch_name, $to_type, $to_name) = unserialize($key);
-        if ($to_did = db_result(db_query("SELECT did FROM {api_documentation} WHERE object_name = '%s' AND branch_name = '%s' AND object_type = '%s'", $to_name, $branch_name, $to_type))) {
-          foreach ($reference[$key] as $from_did) {
-            db_query('REPLACE INTO {api_reference} (from_did, to_did) VALUES (%d, %d)', $from_did, $to_did);
-          }
-          db_query("DELETE FROM {api_reference_storage} WHERE reference_key = '%s'", $key);
-        }
-        else if (db_result(db_query("SELECT COUNT(*) FROM {api_documentation} WHERE object_name = '%s' AND branch_name = 'php' AND object_type = '%s'", $to_name, $to_type))) {
-          db_query("DELETE FROM {api_reference_storage} WHERE reference_key = '%s'", $key);
-        }
-      }
-      break;
-
-    case 'set':
-      $key = serialize(array($branch_name, $to_type, $to_name));
-      db_query("INSERT INTO {api_reference_storage} (reference_key, from_did) VALUES ('%s', %d)", $key, $from_did);
-      break;
-  }
+/**
+ * Update the references that were collected.
+ */
+function api_update_references() {
+  // First, figure out all the dids of the object/branch/types.
+  db_query('UPDATE {api_reference_storage} r, {api_documentation} d SET r.to_did = d.did WHERE r.object_name = d.object_name AND r.branch_name = d.branch_name AND r.object_type = d.object_type');
+  // Next, update the api_documentation table with this information.
+  db_query('REPLACE INTO {api_reference} (from_did, to_did) SELECT from_did, to_did FROM {api_reference_storage} WHERE to_did <> 0');
+  // Finally, delete the processed references.
+  db_query('DELETE FROM s USING {api_reference_storage} s INNER JOIN {api_reference} r ON s.from_did = r.from_did AND s.to_did = r.to_did');
 }
