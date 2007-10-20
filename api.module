@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.48.2.16 2007/09/30 03:07:26 drumm Exp $
+// $Id: api.module,v 1.48.2.17 2007/10/20 01:39:17 drumm Exp $
 
 /**
  * @file
@@ -648,7 +648,7 @@ function api_page_function($branch_name, $object_name) {
 
     $headers = array(array('data' => t('Name'), 'field' => 'd.title'), t('Description'));
     $rows = array();
-    $result = db_query("SELECT d.object_name, d.title, d.summary FROM {api_reference} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'group' WHERE r.from_did = %d". tablesort_sql($headers), $function->did);
+    $result = db_query("SELECT d.object_name, d.title, d.summary FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'group' WHERE r.from_did = %d". tablesort_sql($headers), $function->did);
     while ($group = db_fetch_object($result)) {
       $rows[] = array(
         l($group->title, 'api/group/'. $group->object_name .'/'. $branch_name),
@@ -684,7 +684,7 @@ function api_page_function_references($branch_name, $object_name) {
 
     $headers = array(array('data' => t('Name'), 'field' => 'd.title'), t('Description'));
     $rows = array();
-    $result = db_query("SELECT d.object_name, d.title, d.summary FROM {api_reference} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'group' WHERE r.from_did = %d". tablesort_sql($headers), $function->did);
+    $result = db_query("SELECT d.object_name, d.title, d.summary FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'group' WHERE r.from_did = %d". tablesort_sql($headers), $function->did);
     while ($group = db_fetch_object($result)) {
       $rows[] = array(
         l($group->title, 'api/group/'. $group->object_name .'/'. $branch_name),
@@ -697,7 +697,7 @@ function api_page_function_references($branch_name, $object_name) {
 
     $headers = array(array('data' => t('Name'), 'field' => 'd.title'), array('data' => t('Location'), 'field' => 'd.file_name'), t('Description'));
     $rows = array();
-    $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name FROM {api_reference} r INNER JOIN {api_documentation} d ON r.from_did = d.did AND d.object_type = 'function' WHERE r.to_did = %d". tablesort_sql($headers), $function->did);
+    $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.from_did = d.did AND d.object_type = 'function' WHERE r.to_did = %d". tablesort_sql($headers), $function->did);
     while ($reference = db_fetch_object($result)) {
       $rows[] = array(
         l($reference->title, 'api/function/'. $reference->object_name .'/'. $branch_name),
@@ -711,7 +711,7 @@ function api_page_function_references($branch_name, $object_name) {
 
     $headers = array(array('data' => t('Name'), 'field' => 'd.title'), array('data' => t('Location'), 'field' => 'd.file_name'), t('Description'));
     $rows = array();
-    $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name FROM {api_reference} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'function' WHERE r.from_did = %d". tablesort_sql($headers), $function->did);
+    $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'function' WHERE r.from_did = %d". tablesort_sql($headers), $function->did);
     while ($reference = db_fetch_object($result)) {
       $rows[] = array(
         l($reference->title, 'api/function/'. $reference->object_name .'/'. $branch_name),
@@ -751,7 +751,7 @@ function api_page_constant($branch_name, $object_name) {
 
     $headers = array(array('data' => t('Name'), 'field' => 'd.title'), t('Description'));
     $rows = array();
-    $result = db_query("SELECT d.object_name, d.title, d.summary FROM {api_reference} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'group' WHERE r.from_did = %d". tablesort_sql($headers), $constant->did);
+    $result = db_query("SELECT d.object_name, d.title, d.summary FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'group' WHERE r.from_did = %d". tablesort_sql($headers), $constant->did);
     while ($group = db_fetch_object($result)) {
       $rows[] = array(
         l($group->title, 'api/group/'. $group->object_name .'/'. $branch_name),
@@ -867,7 +867,7 @@ function api_page_group($branch_name, $object_name) {
 
     $headers = array(array('data' => t('Name'), 'field' => 'd.title'), array('data' => t('Location'), 'field' => 'd.file_name'), t('Description'));
     $rows = array();
-    $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name FROM {api_reference} r INNER JOIN {api_documentation} d ON r.from_did = d.did AND d.object_type = 'constant' WHERE r.to_did = %d". tablesort_sql($headers), $group->did);
+    $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.from_did = d.did AND d.object_type = 'constant' WHERE r.to_did = %d". tablesort_sql($headers), $group->did);
     while ($object = db_fetch_object($result)) {
       $rows[] = array(
         l($object->title, 'api/constant/'. $object->object_name .'/'. $branch_name),
@@ -881,7 +881,7 @@ function api_page_group($branch_name, $object_name) {
 
     $headers = array(array('data' => t('Name'), 'field' => 'd.title'), array('data' => t('Location'), 'field' => 'd.file_name'), t('Description'));
     $rows = array();
-    $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name FROM {api_reference} r INNER JOIN {api_documentation} d ON r.from_did = d.did AND d.object_type = 'function' WHERE r.to_did = %d". tablesort_sql($headers), $group->did);
+    $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.from_did = d.did AND d.object_type = 'function' WHERE r.to_did = %d". tablesort_sql($headers), $group->did);
     while ($object = db_fetch_object($result)) {
       $rows[] = array(
         l($object->title, 'api/function/'. $object->object_name .'/'. $branch_name),
@@ -1025,7 +1025,7 @@ function api_page_admin_form_submit($form_id, $form_values) {
           db_query('DELETE FROM {api_documentation} WHERE did = %d', $object->did);
           db_query('DELETE FROM {api_file} WHERE did = %d', $object->did);
           db_query('DELETE FROM {api_function} WHERE did = %d', $object->did);
-          db_query('DELETE FROM {api_reference} WHERE from_did = %d OR to_did = %d', $object->did, $object->did);
+          db_query('DELETE FROM {api_reference_storage} WHERE from_did = %d OR to_did = %d', $object->did, $object->did);
         }
       }
       else {
@@ -1143,7 +1143,7 @@ function api_cron() {
         db_query("DELETE FROM {api_documentation} WHERE did = %d", $doc->did);
         db_query("DELETE FROM {api_file} WHERE did = %d", $doc->did);
         db_query("DELETE FROM {api_function} WHERE did = %d", $doc->did);
-        db_query("DELETE FROM {api_reference} WHERE from_did = %d OR to_did = %d", $doc->did, $doc->did);
+        db_query("DELETE FROM {api_reference_storage} WHERE from_did = %d OR to_did = %d", $doc->did, $doc->did);
       }
     }
     // Clean out any references that couldn't be linked (References to PHP functions, etc.)

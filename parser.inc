@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.24.2.5 2007/09/30 03:07:26 drumm Exp $
+// $Id: parser.inc,v 1.24.2.6 2007/10/20 01:39:17 drumm Exp $
 
 /**
  * @file
@@ -95,7 +95,7 @@ function api_parse_text_file($file_path, $branch_name, $file_name) {
     db_query('DELETE FROM {api_documentation} WHERE did IN (%s)', $old_dids);
     db_query('DELETE FROM {api_file} WHERE did IN (%s)', $old_dids);
     db_query('DELETE FROM {api_function} WHERE did IN (%s)', $old_dids);
-    db_query('DELETE FROM {api_reference} WHERE from_did IN (%s) OR to_did IN (%s)', $old_dids, $old_dids);
+    db_query('DELETE FROM {api_reference_storage} WHERE from_did IN (%s) OR to_did IN (%s)', $old_dids, $old_dids);
   }
 }
 
@@ -150,7 +150,7 @@ function api_parse_html_file($file_path, $branch_name, $file_name) {
     db_query('DELETE FROM {api_documentation} WHERE did IN (%s)', $old_dids);
     db_query('DELETE FROM {api_file} WHERE did IN (%s)', $old_dids);
     db_query('DELETE FROM {api_function} WHERE did IN (%s)', $old_dids);
-    db_query('DELETE FROM {api_reference} WHERE from_did IN (%s) OR to_did IN (%s)', $old_dids, $old_dids);
+    db_query('DELETE FROM {api_reference_storage} WHERE from_did IN (%s) OR to_did IN (%s)', $old_dids, $old_dids);
   }
 }
 
@@ -404,7 +404,7 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
     db_query('DELETE FROM {api_documentation} WHERE did IN (%s)', $old_dids);
     db_query('DELETE FROM {api_file} WHERE did IN (%s)', $old_dids);
     db_query('DELETE FROM {api_function} WHERE did IN (%s)', $old_dids);
-    db_query('DELETE FROM {api_reference} WHERE from_did IN (%s) OR to_did IN (%s)', $old_dids, $old_dids);
+    db_query('DELETE FROM {api_reference_storage} WHERE from_did IN (%s) OR to_did IN (%s)', $old_dids, $old_dids);
   }
 }
 
@@ -683,8 +683,4 @@ function api_reference($branch_name, $to_type, $to_name, $from_did) {
 function api_update_references() {
   // First, figure out all the dids of the object/branch/types.
   db_query('UPDATE {api_reference_storage} r, {api_documentation} d SET r.to_did = d.did WHERE r.object_name = d.object_name AND r.branch_name = d.branch_name AND r.object_type = d.object_type');
-  // Next, update the api_documentation table with this information.
-  db_query('REPLACE INTO {api_reference} (from_did, to_did) SELECT from_did, to_did FROM {api_reference_storage} WHERE to_did <> 0');
-  // Finally, delete the processed references.
-  db_query('DELETE FROM s USING {api_reference_storage} s INNER JOIN {api_reference} r ON s.from_did = r.from_did AND s.to_did = r.to_did');
 }

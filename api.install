@@ -1,5 +1,5 @@
 <?php
-// $Id: api.install,v 1.5.2.4 2007/09/30 03:07:26 drumm Exp $
+// $Id: api.install,v 1.5.2.5 2007/10/20 01:39:16 drumm Exp $
 
 function api_install() {
   switch ($GLOBALS['db_type']) {
@@ -43,12 +43,6 @@ function api_install() {
         parameters mediumtext NOT NULL,
         `return` mediumtext NOT NULL,
         PRIMARY KEY  (did)
-      ) TYPE=MyISAM /*!40100 DEFAULT CHARACTER SET utf8 */;");
-
-      db_query("CREATE TABLE {api_reference} (
-        from_did int(10) unsigned NOT NULL default '0',
-        to_did int(10) unsigned NOT NULL default '0',
-        PRIMARY KEY  (from_did,to_did)
       ) TYPE=MyISAM /*!40100 DEFAULT CHARACTER SET utf8 */;");
 
       db_query("CREATE TABLE {api_reference_storage} (
@@ -147,7 +141,6 @@ function api_update_6() {
         to_did int NOT NULL default '0',
         INDEX object_ref (object_name,branch_name,object_type)
       ) /*!40100 DEFAULT CHARACTER SET utf8 */");
-      $return[] = update_sql('DROP TABLE {api_reference_storage_old}');
       break;
   }
 
@@ -155,6 +148,30 @@ function api_update_6() {
   while ($row = db_fetch_object($result)) {
     list($branch_name, $to_type, $to_name) = unserialize($row->reference_key);
     db_query("INSERT INTO {api_reference_storage} (object_name, branch_name, object_type, from_did) VALUES ('%s', '%s', '%s', %d)", $to_name, $branch_name, $to_type, $row->from_did);
+  }
+
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      $return[] = update_sql('DROP TABLE {api_reference_storage_old}');
+      break;
+  }
+
+  return $return;
+}
+
+/**
+ * Move data from {api_reference} to {api_reference_storage}.
+ */
+function api_update_7() {
+  $return = array();
+
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      $return[] = update_sql("INSERT INTO {api_reference_storage} (object_name, branch_name, object_type, from_did, to_did) SELECT d.object_name, d.branch_name, d.object_type, r.from_did, r.to_did FROM {api_reference} r INNER JOIN {api_documentation} d ON d.did = r.to_did");
+      $return[] = update_sql('DROP TABLE {api_reference}');
+      break;
   }
 
   return $return;
@@ -165,7 +182,6 @@ function api_uninstall() {
   db_query('DROP TABLE IF EXISTS {api_documentation}');
   db_query('DROP TABLE IF EXISTS {api_file}');
   db_query('DROP TABLE IF EXISTS {api_function}');
-  db_query('DROP TABLE IF EXISTS {api_reference}');
   db_query('DROP TABLE IF EXISTS {api_reference_storage}');
   variable_del('api_default_branch');
   variable_del('api_php_funcsummary');
