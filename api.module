@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.48.2.17 2007/10/20 01:39:17 drumm Exp $
+// $Id: api.module,v 1.48.2.18 2007/10/24 06:48:22 drumm Exp $
 
 /**
  * @file
@@ -1146,8 +1146,6 @@ function api_cron() {
         db_query("DELETE FROM {api_reference_storage} WHERE from_did = %d OR to_did = %d", $doc->did, $doc->did);
       }
     }
-    // Clean out any references that couldn't be linked (References to PHP functions, etc.)
-    db_query('DELETE FROM {api_reference_storage}');
   }
 
   // Update any references that were resolved during this run.
