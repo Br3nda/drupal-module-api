@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.24.2.9 2007/11/09 05:51:48 drumm Exp $
+// $Id: parser.inc,v 1.24.2.10 2007/11/09 06:12:06 drumm Exp $
 
 /**
  * @file
@@ -446,6 +446,7 @@ function api_save_documentation(&$docblock) {
   }
 
   if (is_array($docblock['groups'])) {
+    db_query("DELETE FROM {api_reference_storage} WHERE branch_name = '%s' AND object_type = 'group' AND from_did = %d", $docblock['branch_name'], $did);
     foreach ($docblock['groups'] as $group_name) {
       api_reference($docblock['branch_name'], 'group', $group_name, $did);
     }
