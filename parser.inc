@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.24.2.7 2007/10/24 06:48:22 drumm Exp $
+// $Id: parser.inc,v 1.24.2.8 2007/11/09 05:30:08 drumm Exp $
 
 /**
  * @file
@@ -467,7 +467,7 @@ function api_format_documentation($documentation, $branch_name) {
   $documentation = check_plain($documentation);
 
   // Process the @link tag.
-  $documentation = preg_replace('!@link ([a-zA-Z0-9_/]+\.[a-zA-Z0-9_]+) (.*?) @endlink!', str_replace('%24', '$', l('$2', 'api/file/$1/'. $branch_name)), $documentation);
+  $documentation = preg_replace('!@link '. API_RE_FILENAME .' (.*?) @endlink!', str_replace('%24', '$', l('$2', 'api/file/$1/'. $branch_name)), $documentation);
   $documentation = preg_replace('!@link ([a-zA-Z0-9_]+)\(\) (.*?) @endlink!', str_replace('%24', '$', l('$2', 'api/function/$1/'. $branch_name)), $documentation);
   $documentation = preg_replace('!@link ([a-zA-Z0-9_]+) (.*?) @endlink!', str_replace('%24', '$', l('$2', 'api/group/$1/'. $branch_name)), $documentation);
 
