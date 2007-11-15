@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.24.2.10 2007/11/09 06:12:06 drumm Exp $
+// $Id: parser.inc,v 1.24.2.11 2007/11/15 20:48:26 drumm Exp $
 
 /**
  * @file
@@ -109,14 +109,15 @@ function api_parse_html_file($file_path, $branch_name, $file_name) {
 
   // Set up documentation block for file, in case it is not explicitly defined.
   $docblocks[0] = array(
-      'object_name' => $file_name,
-      'branch_name' => $branch_name,
-      'object_type' => 'file',
-      'file_name' => $file_name,
-      'title' => strpos($file_name, '/') ? substr($file_name, strrpos($file_name, '/') + 1) : $file_name,
-      'summary' => '',
-      'documentation' => '',
-      'code' => '<pre>'. htmlspecialchars($source) .'</pre>');
+    'object_name' => $file_name,
+    'branch_name' => $branch_name,
+    'object_type' => 'file',
+    'file_name' => $file_name,
+    'title' => strpos($file_name, '/') ? substr($file_name, strrpos($file_name, '/') + 1) : $file_name,
+    'summary' => '',
+    'documentation' => '',
+    'code' => '<pre>'. htmlspecialchars($source) .'</pre>',
+  );
   $title_match = array();
   if (preg_match('!<title>(.*)</title>!is', $source, $title_match)) {
     $docblocks[0]['title'] = $title_match[1];
