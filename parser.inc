@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.24.2.12 2007/11/15 20:50:26 drumm Exp $
+// $Id: parser.inc,v 1.24.2.13 2007/11/16 19:56:52 drumm Exp $
 
 /**
  * @file
@@ -680,11 +680,11 @@ function api_format_php($code) {
 function api_reference($branch_name, $to_type, $to_name, $from_did) {
   static $is_php_function = array();
 
-  if (!isset($is_php_function[$to_name])) {
+  if ($to_type == 'function' && !isset($is_php_function[$to_name])) {
     $is_php_function[$to_name] = (db_num_rows(db_query("SELECT object_name FROM {api_documentation} WHERE object_name = '%s' AND branch_name = 'php'", $to_name)) == 1);
   }
 
-  if (!$is_php_function[$to_name]) {
+  if ($to_type != 'function' || !$is_php_function[$to_name]) {
     db_query("INSERT INTO {api_reference_storage} (object_name, branch_name, object_type, from_did) VALUES ('%s', '%s', '%s', %d)", $to_name, $branch_name, $to_type, $from_did);
   }
 }
