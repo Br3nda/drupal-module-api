@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.24.2.14 2008/01/23 02:46:40 drumm Exp $
+// $Id: parser.inc,v 1.24.2.15 2008/01/23 02:49:56 drumm Exp $
 
 /**
  * @file
@@ -288,6 +288,32 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
         }
       }
     }
+    else if (substr($source, $code_start, 6) == 'global') {
+      $global_matches = array();
+      $docblock['object_type'] = 'global';
+      preg_match('!^global (\$[a-zA-Z0-9_]+)!', substr($source, $code_start), $global_matches);
+
+      $docblock['object_name'] = substr($global_matches[1], 1);
+      $docblock['title'] = $global_matches[1];
+
+      $code_end = strpos($source, ';', $code_start) + 1;
+      $docblock['code'] = substr($source, $code_start, $code_end - $code_start);
+      $docblock['code'] = api_format_php("<?php\n". $docblock['code'] ."\n?>");
+
+      $docblock['start_line'] = substr_count(substr($source, 0, $code_start), "\n");
+
+      // Determine group membership.
+      $group_matches = array();
+      preg_match_all('!@(ingroup|addtogroup) ([a-zA-Z0-9_]+)!', $docblock['content'], $group_matches);
+      $docblock['groups'] = $group_matches[2];
+      $docblock['content'] = preg_replace('!@ingroup.*?\n!', '', $docblock['content']);
+
+      foreach ($nested_groups as $group_id) {
+        if (!empty($group_id)) {
+          $docblock['groups'][] = $group_id;
+        }
+      }
+    }
     else if (strpos($docblock['content'], '@mainpage') !== FALSE) {
       $mainpage_matches = array();
       preg_match('!@mainpage (.*?)\n!', $docblock['content'], $mainpage_matches);
@@ -380,6 +406,32 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
     $docblock['groups'] = array();
 
     $code_start = $constant_match[0][1];
+    $code_end = strpos($source, ';', $code_start) + 1;
+    $docblock['code'] = substr($source, $code_start, $code_end - $code_start);
+    $docblock['code'] = api_format_php("<?php\n". $docblock['code'] ."\n?>");
+
+    $docblock['start_line'] = substr_count(substr($source, 0, $code_start), "\n");
+
+    $docblocks[] = $docblock;
+  }
+
+  // Find undocumented globals.
+  $global_matches = array();
+  preg_match_all('%(?<!\*/\n)^global (\$[a-zA-Z0-9_]+)%sm', $source, $global_matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+  foreach ($global_matches as $global_match) {
+    $docblock = array(
+      'object_name' => $global_match[1][0],
+      'branch_name' => $branch_name,
+      'object_type' => 'global',
+      'file_name' => $file_name,
+      'title' => $global_match[1][0],
+      'summary' => '',
+      'documentation' => '',
+      'code' => '',
+    );
+    $docblock['groups'] = array();
+
+    $code_start = $global_match[0][1];
     $code_end = strpos($source, ';', $code_start) + 1;
     $docblock['code'] = substr($source, $code_start, $code_end - $code_start);
     $docblock['code'] = api_format_php("<?php\n". $docblock['code'] ."\n?>");
