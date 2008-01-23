@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.24.2.13 2007/11/16 19:56:52 drumm Exp $
+// $Id: parser.inc,v 1.24.2.14 2008/01/23 02:46:40 drumm Exp $
 
 /**
  * @file
@@ -434,6 +434,7 @@ function api_save_documentation(&$docblock) {
       db_query("INSERT INTO {api_function} (did, signature, start_line, parameters, `return`) VALUES (%d, '%s', %d, '%s', '%s')", $did, $docblock['signature'], $docblock['start_line'], $docblock['parameters'], $docblock['return']);
 
       if (is_array($docblock['function calls'])) {
+        db_query("DELETE FROM {api_reference_storage} WHERE branch_name = '%s' AND object_type = 'function' AND from_did = %d", $docblock['branch_name'], $did);
         foreach ($docblock['function calls'] as $function_name) {
           api_reference($docblock['branch_name'], 'function', $function_name, $did);
         }
