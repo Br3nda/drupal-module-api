@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.48.2.20 2008/01/23 02:49:56 drumm Exp $
+// $Id: api.module,v 1.48.2.21 2008/01/26 03:34:44 drumm Exp $
 
 /**
  * @file
@@ -1396,6 +1396,7 @@ function api_link_name($name, $branch_name, $prepend = '', $append = '') {
       'function' => array(),
       'file' => array(),
       'constant' => array(),
+      'global' => array(),
     );
     while ($object = db_fetch_object($result)) {
       $local_objects[$object->object_type][$object->title] = $object;
