@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.24 2007/07/26 06:39:00 drumm Exp $
+// $Id: parser.inc,v 1.25 2008/05/19 07:09:38 drumm Exp $
 
 /**
  * @file
@@ -34,7 +34,7 @@ function api_parse_php_manual($location) {
  * for parsing.
  */
 function api_parse_file($file_path, $branch_name, $file_name) {
-  if (preg_match('!\.(php|module|inc|engine|theme)$!', $file_name)) {
+  if (preg_match('!\.(php|module|inc|install|engine|theme)$!', $file_name)) {
     watchdog('api', t('Parsing %path...', array('%path' => $file_path)));
     api_parse_php_file($file_path, $branch_name, $file_name);
     return TRUE;
@@ -95,7 +95,7 @@ function api_parse_text_file($file_path, $branch_name, $file_name) {
     db_query('DELETE FROM {api_documentation} WHERE did IN (%s)', $old_dids);
     db_query('DELETE FROM {api_file} WHERE did IN (%s)', $old_dids);
     db_query('DELETE FROM {api_function} WHERE did IN (%s)', $old_dids);
-    db_query('DELETE FROM {api_reference} WHERE from_did IN (%s) OR to_did IN (%s)', $old_dids, $old_dids);
+    db_query('DELETE FROM {api_reference_storage} WHERE from_did IN (%s) OR to_did IN (%s)', $old_dids, $old_dids);
   }
 }
 
@@ -109,14 +109,15 @@ function api_parse_html_file($file_path, $branch_name, $file_name) {
 
   // Set up documentation block for file, in case it is not explicitly defined.
   $docblocks[0] = array(
-      'object_name' => $file_name,
-      'branch_name' => $branch_name,
-      'object_type' => 'file',
-      'file_name' => $file_name,
-      'title' => strpos($file_name, '/') ? substr($file_name, strrpos($file_name, '/') + 1) : $file_name,
-      'summary' => '',
-      'documentation' => '',
-      'code' => '<pre>'. htmlspecialchars($source) .'</pre>');
+    'object_name' => $file_name,
+    'branch_name' => $branch_name,
+    'object_type' => 'file',
+    'file_name' => $file_name,
+    'title' => strpos($file_name, '/') ? substr($file_name, strrpos($file_name, '/') + 1) : $file_name,
+    'summary' => '',
+    'documentation' => '',
+    'code' => '<pre>'. htmlspecialchars($source) .'</pre>',
+  );
   $title_match = array();
   if (preg_match('!<title>(.*)</title>!is', $source, $title_match)) {
     $docblocks[0]['title'] = $title_match[1];
@@ -150,7 +151,7 @@ function api_parse_html_file($file_path, $branch_name, $file_name) {
     db_query('DELETE FROM {api_documentation} WHERE did IN (%s)', $old_dids);
     db_query('DELETE FROM {api_file} WHERE did IN (%s)', $old_dids);
     db_query('DELETE FROM {api_function} WHERE did IN (%s)', $old_dids);
-    db_query('DELETE FROM {api_reference} WHERE from_did IN (%s) OR to_did IN (%s)', $old_dids, $old_dids);
+    db_query('DELETE FROM {api_reference_storage} WHERE from_did IN (%s) OR to_did IN (%s)', $old_dids, $old_dids);
   }
 }
 
@@ -161,8 +162,8 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
   $source = file_get_contents($file_path);
 
   // Convert Mac/Win line breaks to Unix format.
-  $source = str_replace("\r\n","\n", $source);
-  $source = str_replace("\r","\n", $source);
+  $source = str_replace("\r\n", "\n", $source);
+  $source = str_replace("\r", "\n", $source);
 
   $docblock_matches = array();
   $docblocks = array();
@@ -235,7 +236,7 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
       $return_matches = array();
       $docblock['return'] = '';
       preg_match_all('!@return(.*?)(\n@|\n\n|$)!s', $docblock['content'], $return_matches, PREG_SET_ORDER);
-      foreach($return_matches as $return_match) {
+      foreach ($return_matches as $return_match) {
         $docblock['content'] = str_replace($return_match[0], '', $docblock['content']);
         $docblock['return'] .= "\n\n". $return_match[1];
       }
@@ -245,7 +246,7 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
       $function_call_matches = array();
       $docblock['function calls'] = array();
       preg_match_all('!<span class="php-function-or-constant">([a-zA-Z0-9_]+)</span>\(!', substr($docblock['code'], strlen('<div class="php"><code><span class="php-keyword">function</span> <span class="php-function-or-constant">')), $function_call_matches, PREG_SET_ORDER);
-      foreach($function_call_matches as $function_call_match) {
+      foreach ($function_call_matches as $function_call_match) {
         $docblock['function calls'][$function_call_match[1]] = $function_call_match[1];
       }
 
@@ -268,6 +269,32 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
       preg_match('!^define\([\'"]([a-zA-Z0-9_]+)[\'"]!', substr($source, $code_start), $constant_matches);
       $docblock['object_name'] = $constant_matches[1];
       $docblock['title'] = $constant_matches[1];
+
+      $code_end = strpos($source, ';', $code_start) + 1;
+      $docblock['code'] = substr($source, $code_start, $code_end - $code_start);
+      $docblock['code'] = api_format_php("<?php\n". $docblock['code'] ."\n?>");
+
+      $docblock['start_line'] = substr_count(substr($source, 0, $code_start), "\n");
+
+      // Determine group membership.
+      $group_matches = array();
+      preg_match_all('!@(ingroup|addtogroup) ([a-zA-Z0-9_]+)!', $docblock['content'], $group_matches);
+      $docblock['groups'] = $group_matches[2];
+      $docblock['content'] = preg_replace('!@ingroup.*?\n!', '', $docblock['content']);
+
+      foreach ($nested_groups as $group_id) {
+        if (!empty($group_id)) {
+          $docblock['groups'][] = $group_id;
+        }
+      }
+    }
+    else if (substr($source, $code_start, 6) == 'global') {
+      $global_matches = array();
+      $docblock['object_type'] = 'global';
+      preg_match('!^global (\$[a-zA-Z0-9_]+)!', substr($source, $code_start), $global_matches);
+
+      $docblock['object_name'] = substr($global_matches[1], 1);
+      $docblock['title'] = $global_matches[1];
 
       $code_end = strpos($source, ';', $code_start) + 1;
       $docblock['code'] = substr($source, $code_start, $code_end - $code_start);
@@ -388,6 +415,32 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
     $docblocks[] = $docblock;
   }
 
+  // Find undocumented globals.
+  $global_matches = array();
+  preg_match_all('%(?<!\*/\n)^global (\$[a-zA-Z0-9_]+)%sm', $source, $global_matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+  foreach ($global_matches as $global_match) {
+    $docblock = array(
+      'object_name' => $global_match[1][0],
+      'branch_name' => $branch_name,
+      'object_type' => 'global',
+      'file_name' => $file_name,
+      'title' => $global_match[1][0],
+      'summary' => '',
+      'documentation' => '',
+      'code' => '',
+    );
+    $docblock['groups'] = array();
+
+    $code_start = $global_match[0][1];
+    $code_end = strpos($source, ';', $code_start) + 1;
+    $docblock['code'] = substr($source, $code_start, $code_end - $code_start);
+    $docblock['code'] = api_format_php("<?php\n". $docblock['code'] ."\n?>");
+
+    $docblock['start_line'] = substr_count(substr($source, 0, $code_start), "\n");
+
+    $docblocks[] = $docblock;
+  }
+
   $old_dids = array();
   $result = db_query("SELECT did FROM {api_documentation} WHERE branch_name = '%s' AND file_name = '%s'", $branch_name, $file_name);
   while ($object = db_fetch_object($result)) {
@@ -404,7 +457,7 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
     db_query('DELETE FROM {api_documentation} WHERE did IN (%s)', $old_dids);
     db_query('DELETE FROM {api_file} WHERE did IN (%s)', $old_dids);
     db_query('DELETE FROM {api_function} WHERE did IN (%s)', $old_dids);
-    db_query('DELETE FROM {api_reference} WHERE from_did IN (%s) OR to_did IN (%s)', $old_dids, $old_dids);
+    db_query('DELETE FROM {api_reference_storage} WHERE from_did IN (%s) OR to_did IN (%s)', $old_dids, $old_dids);
   }
 }
 
@@ -433,8 +486,9 @@ function api_save_documentation(&$docblock) {
       db_query("INSERT INTO {api_function} (did, signature, start_line, parameters, `return`) VALUES (%d, '%s', %d, '%s', '%s')", $did, $docblock['signature'], $docblock['start_line'], $docblock['parameters'], $docblock['return']);
 
       if (is_array($docblock['function calls'])) {
+        db_query("DELETE FROM {api_reference_storage} WHERE branch_name = '%s' AND object_type = 'function' AND from_did = %d", $docblock['branch_name'], $did);
         foreach ($docblock['function calls'] as $function_name) {
-          api_reference('set', $docblock['branch_name'], 'function', $function_name, $did);
+          api_reference($docblock['branch_name'], 'function', $function_name, $did);
         }
       }
       break;
@@ -446,8 +500,9 @@ function api_save_documentation(&$docblock) {
   }
 
   if (is_array($docblock['groups'])) {
+    db_query("DELETE FROM {api_reference_storage} WHERE branch_name = '%s' AND object_type = 'group' AND from_did = %d", $docblock['branch_name'], $did);
     foreach ($docblock['groups'] as $group_name) {
-      api_reference('set', $docblock['branch_name'], 'group', $group_name, $did);
+      api_reference($docblock['branch_name'], 'group', $group_name, $did);
     }
   }
 
@@ -467,14 +522,14 @@ function api_format_documentation($documentation, $branch_name) {
   $documentation = check_plain($documentation);
 
   // Process the @link tag.
-  $documentation = preg_replace('!@link ([a-zA-Z0-9_/]+\.[a-zA-Z0-9_]+) (.*?) @endlink!', str_replace('%24', '$', l('$2', 'api/file/$1/'. $branch_name)), $documentation);
+  $documentation = preg_replace('!@link ((http://|https://|ftp://|mailto:|smb://|afp://|file://|gopher://|news://|ssl://|sslv2://|sslv3://|tls://|tcp://|udp://)([a-zA-Z0-9@:%_+*~#?&=.,/;-]*[a-zA-Z0-9@:%_+*~#&=/;-])) (.*?) @endlink!', '<a href="$1">$4</a>', $documentation);
+  $documentation = preg_replace('!@link '. API_RE_FILENAME .' (.*?) @endlink!', str_replace('%24', '$', l('$2', 'api/file/$1/'. $branch_name)), $documentation);
   $documentation = preg_replace('!@link ([a-zA-Z0-9_]+)\(\) (.*?) @endlink!', str_replace('%24', '$', l('$2', 'api/function/$1/'. $branch_name)), $documentation);
+  $documentation = preg_replace('!@link /([a-zA-Z0-9_/-]+) (.*?) @endlink!', str_replace('%24', '$', l('$2', '$1')), $documentation);
   $documentation = preg_replace('!@link ([a-zA-Z0-9_]+) (.*?) @endlink!', str_replace('%24', '$', l('$2', 'api/group/$1/'. $branch_name)), $documentation);
 
-  // Process the @see tag.
-  $documentation = preg_replace('!@see ([a-zA-Z0-9_]+) (.*?) \n!', str_replace('%24', '$', l('$2', 'api/group/$1/'. $branch_name)), $documentation);
-  $documentation = preg_replace('!@see ([a-zA-Z0-9_]+)\(\) (.*?) \n!', str_replace('%24', '$', l('$2', 'api/function/$1/'. $branch_name)), $documentation);
-  $documentation = preg_replace('!@see ([a-zA-Z0-9_]+) (.*?) \n!', str_replace('%24', '$', l('$2', 'api/group/$1/'. $branch_name)), $documentation);
+  // Process the @see tag
+  $documentation = preg_replace('!\n@see (.*[^.])\.?!', '<h3>See also</h3><p>$1</p>', $documentation);
 
   // Replace left over curly braces
   $documentation = preg_replace('!@[{}]!', '', $documentation);
@@ -589,7 +644,7 @@ function api_format_php($code) {
 
   $in_string = FALSE;
 
-  foreach($tokens as $token) {
+  foreach ($tokens as $token) {
     if ($in_string) {
       if ($token == '"') {
         $output .= '"</span>';
@@ -611,9 +666,9 @@ function api_format_php($code) {
       $value = htmlspecialchars($token[1]);
 
       switch ($type) {
-        // Discarded strings:
         case T_OPEN_TAG:
         case T_CLOSE_TAG:
+          $output .= '<span class="php-boundry">'. $value .'</span>';
           break;
 
         case T_COMMENT:
@@ -666,80 +721,31 @@ function api_format_php($code) {
   }
 
   // Manage whitespace:
-  $output = preg_replace('!([\n ]+)!se', 'api_format_php_whitespace(\'$1\')', $output);
-  return '<div class="php"><code>'. trim($output) .'</code></div>';
-}
-
-/**
- * Given a run of whitespace, convert it into nonbreaking spaces and forced line
- * breaks as necessary to preserve it in the resulting HTML.
- */
-function api_format_php_whitespace($whitespace) {
-  $output = '';
-  $breakingspace = 1;
-  $runlength = 0;
-  for ($i = 0; $i < strlen($whitespace); $i++) {
-    if ($whitespace{$i} == "\n") {
-      for ($j = 0; $j < $runlength - $breakingspace; $j++) {
-        $output .= '&nbsp;';
-      }
-      if ($breakingspace) {
-        $output .= ' ';
-      }
-      $output .= "<br />\n";
-      $breakingspace = 0;
-    }
-    else {
-      $runlength++;
-    }
-  }
-  for ($j = 0; $j < $runlength - $breakingspace; $j++) {
-    $output .= '&nbsp;';
-  }
-  if ($breakingspace) {
-    $output .= ' ';
-  }
-
-  return $output;
+  return '<pre class="php"><code>'. trim($output) .'</code></pre>';
 }
 
 /**
  * Since we may parse a file containing a reference before we have parsed the
- * file containing the referenced object, we manage all references internally
- * in an array and store the array in a Drupal persistent variable. Then we can
- * save the references to the database table when the referenced object has
- * been parsed.
+ * file containing the referenced object, we keep track of the references
+ * using a scratch table and save the references to the database table after the
+ * referenced object has been parsed.
  */
-function api_reference($op, $branch_name = '', $to_type = '', $to_name = '', $from_did = 0) {
-  static $reference = NULL;
+function api_reference($branch_name, $to_type, $to_name, $from_did) {
+  static $is_php_function = array();
 
-  switch ($op) {
-    case 'save':
-      if ($reference == NULL) {
-        $reference = array();
-        $references = db_query('SELECT * FROM {api_reference_storage}');
-        while ($next_reference = db_fetch_object($references)) {
-          $reference[$next_reference->reference_key][] = $next_reference->from_did;
-        }
-      }
-      foreach (array_keys($reference) as $key) {
-        list($branch_name, $to_type, $to_name) = unserialize($key);
-        if ($to_did = db_result(db_query("SELECT did FROM {api_documentation} WHERE object_name = '%s' AND branch_name = '%s' AND object_type = '%s'", $to_name, $branch_name, $to_type))) {
-          foreach ($reference[$key] as $from_did) {
-            db_query('REPLACE INTO {api_reference} (from_did, to_did) VALUES (%d, %d)', $from_did, $to_did);
-          }
-          db_query("DELETE FROM {api_reference_storage} WHERE reference_key = '%s'", $key);
-        }
-        else if (db_result(db_query("SELECT COUNT(*) FROM {api_documentation} WHERE object_name = '%s' AND branch_name = 'php' AND object_type = '%s'", $to_name, $to_type))) {
-          db_query("DELETE FROM {api_reference_storage} WHERE reference_key = '%s'", $key);
-        }
-      }
-      break;
-    case 'set':
-      $key = serialize(array($branch_name, $to_type, $to_name));
-      db_query("INSERT INTO {api_reference_storage} (reference_key, from_did) VALUES ('%s', %d)", $key, $from_did);
-      break;
+  if ($to_type == 'function' && !isset($is_php_function[$to_name])) {
+    $is_php_function[$to_name] = (db_num_rows(db_query("SELECT object_name FROM {api_documentation} WHERE object_name = '%s' AND branch_name = 'php'", $to_name)) == 1);
+  }
+
+  if ($to_type != 'function' || !$is_php_function[$to_name]) {
+    db_query("INSERT INTO {api_reference_storage} (object_name, branch_name, object_type, from_did) VALUES ('%s', '%s', '%s', %d)", $to_name, $branch_name, $to_type, $from_did);
   }
 }
 
-?>
+/**
+ * Update the references that were collected.
+ */
+function api_update_references() {
+  // First, figure out all the dids of the object/branch/types.
+  db_query('UPDATE {api_reference_storage} r, {api_documentation} d SET r.to_did = d.did WHERE r.object_name = d.object_name AND r.branch_name = d.branch_name AND r.object_type = d.object_type');
+}

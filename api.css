@@ -1,7 +1,8 @@
-/* $Id: api.css,v 1.5 2007/07/26 06:06:46 drumm Exp $ */
+/* $Id: api.css,v 1.6 2008/05/19 07:09:38 drumm Exp $ */
 
 .php {
   font-family: monospace;
+  overflow: auto;
 }
 
 .php .php-comment {
