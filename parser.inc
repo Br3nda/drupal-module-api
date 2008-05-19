@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.25 2008/05/19 07:09:38 drumm Exp $
+// $Id: parser.inc,v 1.26 2008/05/19 07:20:48 drumm Exp $
 
 /**
  * @file
@@ -35,17 +35,17 @@ function api_parse_php_manual($location) {
  */
 function api_parse_file($file_path, $branch_name, $file_name) {
   if (preg_match('!\.(php|module|inc|install|engine|theme)$!', $file_name)) {
-    watchdog('api', t('Parsing %path...', array('%path' => $file_path)));
+    watchdog('api', 'Parsing %path.', array('%path' => $file_path));
     api_parse_php_file($file_path, $branch_name, $file_name);
     return TRUE;
   }
   if (preg_match('!\.(txt)$!', $file_name)) {
-    watchdog('api', t('Parsing %path...', array('%path' => $file_path)));
+    watchdog('api', 'Parsing %path.', array('%path' => $file_path));
     api_parse_text_file($file_path, $branch_name, $file_name);
     return TRUE;
   }
   if (preg_match('!\.(htm|html)$!', $file_name)) {
-    watchdog('api', t('Parsing %path...', array('%path' => $file_path)));
+    watchdog('api', 'Parsing %path.', array('%path' => $file_path));
     api_parse_html_file($file_path, $branch_name, $file_name);
     return TRUE;
   }
@@ -198,13 +198,15 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
       'title' => '',
       'summary' => '',
       'documentation' => '',
-      'code' => '');
+      'code' => '',
+    );
     $docblock['content'] = str_replace(array("\n *", "\n "), array("\n", "\n"), $docblock_match[1][0]);
     $docblock['start'] = $docblock_match[0][1];
     $docblock['length'] = strlen($docblock_match[0][0]);
+    $code_start = $docblock['start'] + $docblock['length'] + 1;
+    $docblock['start_line'] = substr_count(substr($source, 0, $code_start), "\n");
 
     // Determine what kind of documentation block this is.
-    $code_start = $docblock['start'] + $docblock['length'] + 1;
     if (substr($source, $code_start, 8) == 'function') {
       $function_matches = array();
 
@@ -218,8 +220,6 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
       $code_end = strpos($source, "\n}", $code_start) + 2;
       $docblock['code'] = substr($source, $code_start, $code_end - $code_start);
       $docblock['code'] = api_format_php("<?php\n". $docblock['code'] ."\n?>");
-
-      $docblock['start_line'] = substr_count(substr($source, 0, $code_start), "\n");
 
       // Find parameter definitions.
       $param_match = array();
@@ -274,8 +274,6 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
       $docblock['code'] = substr($source, $code_start, $code_end - $code_start);
       $docblock['code'] = api_format_php("<?php\n". $docblock['code'] ."\n?>");
 
-      $docblock['start_line'] = substr_count(substr($source, 0, $code_start), "\n");
-
       // Determine group membership.
       $group_matches = array();
       preg_match_all('!@(ingroup|addtogroup) ([a-zA-Z0-9_]+)!', $docblock['content'], $group_matches);
@@ -329,11 +327,15 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
     }
     else if (strpos($docblock['content'], '@defgroup') !== FALSE) {
       $group_matches = array();
-      preg_match('!@defgroup ([a-zA-Z0-9_]+) +(.*?)\n!', $docblock['content'], $group_matches);
-      $docblock['object_name'] = $group_matches[1];
-      $docblock['title'] = $group_matches[2];
-      $docblock['content'] = preg_replace('!@defgroup.*?\n!', '', $docblock['content']);
-      $docblock['object_type'] = 'group';
+      if (preg_match('!@defgroup ([a-zA-Z0-9_.-]+) +(.*?)\n!', $docblock['content'], $group_matches)) {
+        $docblock['object_name'] = $group_matches[1];
+        $docblock['title'] = $group_matches[2];
+        $docblock['content'] = preg_replace('!@defgroup.*?\n!', '', $docblock['content']);
+        $docblock['object_type'] = 'group';
+      }
+      else {
+        watchdog('api', 'Malformed @defgroup in %file at line %line.', array('%file' => $file_path, '%line' => $docblock['start_line']), WATCHDOG_NOTICE);
+      }
     }
 
     // Handle nested function groups.
@@ -470,14 +472,13 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
  *   The documentation ID of the inserted/updated construct.
  */
 function api_save_documentation(&$docblock) {
-  $result = db_query("SELECT did FROM {api_documentation} WHERE object_name = '%s' AND branch_name = '%s' AND object_type = '%s'", $docblock['object_name'], $docblock['branch_name'], $docblock['object_type']);
-  if (db_num_rows($result) > 0) {
-    $did = db_result($result);
+  $did = db_result(db_query("SELECT did FROM {api_documentation} WHERE object_name = '%s' AND branch_name = '%s' AND object_type = '%s'", $docblock['object_name'], $docblock['branch_name'], $docblock['object_type'], $docblock['file_name']));
+  if ($did > 0) {
     db_query("UPDATE {api_documentation} SET title = '%s', file_name = '%s', summary = '%s', documentation = '%s', code = '%s' WHERE did = %d", $docblock['title'], $docblock['file_name'], $docblock['summary'], $docblock['documentation'], $docblock['code'], $did);
   }
   else {
-    $did = db_next_id('{api_documentation}_did');
-    db_query("INSERT INTO {api_documentation} (did, object_name, branch_name, object_type, title, file_name, summary, documentation, code) VALUES (%d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')", $did, $docblock['object_name'], $docblock['branch_name'], $docblock['object_type'], $docblock['title'], $docblock['file_name'], $docblock['summary'], $docblock['documentation'], $docblock['code']);
+    db_query("INSERT INTO {api_documentation} (object_name, branch_name, object_type, title, file_name, summary, documentation, code) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')", $docblock['object_name'], $docblock['branch_name'], $docblock['object_type'], $docblock['title'], $docblock['file_name'], $docblock['summary'], $docblock['documentation'], $docblock['code']);
+    $did = db_last_insert_id('api_documentation', 'did');
   }
 
   switch ($docblock['object_type']) {
@@ -485,7 +486,7 @@ function api_save_documentation(&$docblock) {
       db_query('DELETE FROM {api_function} WHERE did = %d', $did);
       db_query("INSERT INTO {api_function} (did, signature, start_line, parameters, `return`) VALUES (%d, '%s', %d, '%s', '%s')", $did, $docblock['signature'], $docblock['start_line'], $docblock['parameters'], $docblock['return']);
 
-      if (is_array($docblock['function calls'])) {
+      if (isset($docblock['function calls'])) {
         db_query("DELETE FROM {api_reference_storage} WHERE branch_name = '%s' AND object_type = 'function' AND from_did = %d", $docblock['branch_name'], $did);
         foreach ($docblock['function calls'] as $function_name) {
           api_reference($docblock['branch_name'], 'function', $function_name, $did);
@@ -499,7 +500,7 @@ function api_save_documentation(&$docblock) {
       break;
   }
 
-  if (is_array($docblock['groups'])) {
+  if (isset($docblock['groups'])) {
     db_query("DELETE FROM {api_reference_storage} WHERE branch_name = '%s' AND object_type = 'group' AND from_did = %d", $docblock['branch_name'], $did);
     foreach ($docblock['groups'] as $group_name) {
       api_reference($docblock['branch_name'], 'group', $group_name, $did);
@@ -734,7 +735,7 @@ function api_reference($branch_name, $to_type, $to_name, $from_did) {
   static $is_php_function = array();
 
   if ($to_type == 'function' && !isset($is_php_function[$to_name])) {
-    $is_php_function[$to_name] = (db_num_rows(db_query("SELECT object_name FROM {api_documentation} WHERE object_name = '%s' AND branch_name = 'php'", $to_name)) == 1);
+    $is_php_function[$to_name] = (db_result(db_query("SELECT COUNT(*) FROM {api_documentation} WHERE object_name = '%s' AND branch_name = 'php'", $to_name)) == 1);
   }
 
   if ($to_type != 'function' || !$is_php_function[$to_name]) {
