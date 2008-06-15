@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.26 2008/05/19 07:20:48 drumm Exp $
+// $Id: parser.inc,v 1.27 2008/06/15 21:59:04 drumm Exp $
 
 /**
  * @file
@@ -23,7 +23,12 @@ function api_parse_php_manual($location) {
         'title' => $function_match[1],
         'summary' => api_documentation_summary($function_match[0]),
         'documentation' => $function_match[0],
-        'code' => '');
+        'code' => '',
+        'signature' => '',
+        'start_line' => 0,
+        'parameters' => '',
+        'return' => '',
+      );
       api_save_documentation($docblock);
     }
   }
