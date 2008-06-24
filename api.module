@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.51 2008/06/24 06:58:28 drumm Exp $
+// $Id: api.module,v 1.52 2008/06/24 19:07:31 drumm Exp $
 
 /**
  * @file
@@ -232,48 +232,48 @@ function api_menu() {
       'title' => $branch->title,
       'page callback' => 'api_page_branch',
       'page arguments' => array($branch->branch_name),
-      'access callback' => $access_callback, // @@@
-      'access arguments' => $access_arguments, // @@@
+      'access callback' => $access_callback,
+      'access arguments' => $access_arguments,
       'type' => ($branch->branch_name == $default_branch) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
     );
     $items['api/functions/'. $branch->branch_name] = array(
       'title' => $branch->title,
       'page callback' => 'api_page_listing',
       'page arguments' => array($branch->branch_name, 'function'),
-      'access callback' => 'api_tabchk',
-      'access arguments' => array('function', NULL, $branch->branch_name),
+      'access callback' => $access_callback,
+      'access arguments' => $access_arguments,
       'type' => ($branch->branch_name == $default_branch) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
     );
     $items['api/constants/'. $branch->branch_name] = array(
       'title' => $branch->title,
       'page callback' => 'api_page_listing',
       'page arguments' => array($branch->branch_name, 'constant'),
-      'access callback' => 'api_tabchk',
-      'access arguments' => array('constant', NULL, $branch->branch_name),
+      'access callback' => $access_callback,
+      'access arguments' => $access_arguments,
       'type' => ($branch->branch_name == $default_branch) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
     );
     $items['api/globals/'. $branch->branch_name] = array(
       'title' => $branch->title,
       'page callback' => 'api_page_listing',
       'page arguments' => array($branch->branch_name, 'global'),
-      'access callback' => 'api_tabchk',
-      'access arguments' => array('global', NULL, $branch->branch_name),
+      'access callback' => $access_callback,
+      'access arguments' => $access_arguments,
       'type' => ($branch->branch_name == $default_branch) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
     );
     $items['api/files/'. $branch->branch_name] = array(
       'title' => $branch->title,
       'page callback' => 'api_page_listing',
       'page arguments' => array($branch->branch_name, 'file'),
-      'access callback' => 'api_tabchk',
-      'access arguments' => array('file', NULL, $branch->branch_name),
+      'access callback' => $access_callback,
+      'access arguments' => $access_arguments,
       'type' => ($branch->branch_name == $default_branch) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
     );
     $items['api/groups/'. $branch->branch_name] = array(
       'title' => $branch->title,
       'page callback' => 'api_page_listing',
       'page arguments' => array($branch->branch_name, 'group'),
-      'access callback' => 'api_tabchk',
-      'access arguments' => array('group', NULL, 2),
+      'access callback' => $access_callback,
+      'access arguments' => $access_arguments,
       'type' => ($branch->branch_name == $default_branch) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
     );
 
@@ -322,7 +322,6 @@ function api_menu() {
       'access arguments' => array(1, 2, 3),
       'type' => ($branch->branch_name == $default_branch) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
     );
-    // Here's where it gets interesting.
     $items['api/file/%api_filename/'. $branch->branch_name] = array(
       'title' => $branch->title,
       'page callback' => 'api_page_file',
@@ -490,7 +489,6 @@ function api_block($op, $delta = NULL, $edit = array()) {
           $links = array();
           $links[] = l($branches[$branch]->title, 'api'. $suffix);
           $links[] = l(t('Constants'), 'api/constants'. $suffix);
-          $links[] = l(t('Globals'), 'api/globals'. $suffix);
           $links[] = l(t('Files'), 'api/files'. $suffix);
           $links[] = l(t('Functions'), 'api/functions'. $suffix);
           $links[] = l(t('Globals'), 'api/globals'. $suffix);
