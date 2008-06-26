@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.53 2008/06/25 05:48:27 drumm Exp $
+// $Id: api.module,v 1.54 2008/06/26 06:48:50 drumm Exp $
 
 /**
  * @file
@@ -23,6 +23,11 @@
  * Regular expression for matching file names.
  */
 define('API_RE_FILENAME', '([a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)+)');
+
+/**
+ * The maximum number of path elements to look for in file names.
+ */
+define('API_MAX_FILE_ELEMENTS', 5);
 
 /**
  * Implementation of hook_help()
@@ -135,14 +140,6 @@ function api_menu() {
     'page arguments' => array($default_branch, 'global'),
     'type' => MENU_CALLBACK,
   );
-  $items['api/file'] = array(
-    'title' => 'Files',
-    'page callback' => 'api_page_listing',
-    'access callback' => $access_callback,
-    'access arguments' => $access_arguments,
-    'page arguments' => array($default_branch, 'file'),
-    'type' => MENU_CALLBACK,
-  );
   $items['api/files'] = array(
     'title' => 'Files',
     'page callback' => 'api_page_listing',
@@ -218,13 +215,20 @@ function api_menu() {
     'access arguments' => $access_arguments,
     'type' => MENU_CALLBACK,
   );
-  $items['api/file/%api_filename'] = array(
-    'title callback' => 'basename',
-    'title arguments' => array(2),
-    'page callback' => 'api_page_file',
-    'page arguments' => array($default_branch, 2),
-    'type' => MENU_CALLBACK,
-  );
+  // This is nonideal. We have a dynamic number of elments in the middle of the
+  // path when the menu system expects that sort of thing to be at the end.
+  for ($i = 0; $i < API_MAX_FILE_ELEMENTS; $i += 1) {
+    $elements = str_repeat('/%', $i);
+    $items['api/file/%api_filename'. $elements] = array(
+      'title' => 'File',
+      'load arguments' => array('%map', '%index', $default_branch),
+      'page callback' => 'api_page_file',
+      'page arguments' => array(2),
+      'access callback' => $access_callback,
+      'access arguments' => $access_arguments,
+      'type' => MENU_CALLBACK,
+    );
+  }
   $items['api/group/%api_object'] = array(
     'title' => 'Topic',
     'load arguments' => array('group', $default_branch),
@@ -333,30 +337,36 @@ function api_menu() {
       'access arguments' => $access_arguments,
       'type' => ($branch->branch_name == $default_branch) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
     );
-    $items['api/file/%api_filename/'. $branch->branch_name] = array(
-      'title' => $branch->title,
-      'page callback' => 'api_page_file',
-      'page arguments' => array(3, 2),
-      'access callback' => 'api_tabchk',
-      'access arguments' => array(1, 2, 3),
-      'tab_parent' => 'api/file/%api_filename',
-      'type' => ($branch->branch_name == $default_branch) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
-    );
-    // We are actually collapsing the entire filename into a single argument.
-    $items['api/file/%api_filename/'. $branch->branch_name .'/documentation'] = array(
-      'title' => 'View documentation',
-      'type' => MENU_DEFAULT_LOCAL_TASK,
-      'tab_parent' => 'api/file/%api_filename/'. $branch->branch_name,
-      'weight' => -10,
-    );
-    // The tabs act as expected, even thought there are a variable number of slashes.
-    $items['api/file/%api_filename/'. $branch->branch_name .'/source'] = array(
-      'title' => 'View source',
-      'page callback' => 'api_page_file_source',
-      'page arguments' => array(3, 2),
-      'type' => MENU_LOCAL_TASK,
-      'tab_parent' => 'api/file/%api_filename/'. $branch->branch_name,
-    );
+    // This is nonideal. We have a dynamic number of elments in the middle of
+    // the path when the menu system expects that sort of thing to be at the
+    // end.
+    for ($i = 0; $i < API_MAX_FILE_ELEMENTS; $i += 1) {
+      $elements = str_repeat('/%', $i);
+      $items['api/file/%api_filename'. $elements .'/'. $branch->branch_name] = array(
+        'title' => $branch->title,
+        'load arguments' => array('%map', '%index', $branch->branch_name),
+        'page callback' => 'api_page_file',
+        'page arguments' => array(2),
+        'access callback' => $access_callback,
+        'access arguments' => $access_arguments,
+        'type' => ($branch->branch_name == $default_branch) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
+      );
+      $items['api/file/%api_filename'. $elements .'/'. $branch->branch_name .'/documentation'] = array(
+        'title' => 'View documentation',
+        'load arguments' => array('%map', '%index', $branch->branch_name),
+        'type' => MENU_DEFAULT_LOCAL_TASK,
+        'weight' => -10,
+      );
+      $items['api/file/%api_filename'. $elements .'/'. $branch->branch_name .'/source'] = array(
+        'title' => 'View source',
+        'load arguments' => array('%map', '%index', $branch->branch_name),
+        'page callback' => 'api_page_file_source',
+        'page arguments' => array(2),
+        'access callback' => $access_callback,
+        'access arguments' => $access_arguments,
+        'type' => MENU_LOCAL_TASK,
+      );
+    }
     $items['api/group/%api_object/'. $branch->branch_name] = array(
       'title' => $branch->title,
       'load arguments' => array('group', $branch->branch_name),
@@ -379,41 +389,15 @@ function api_menu() {
   return $items;
 }
 
-/**
- * Determine a filename.
- */
-function api_filename_to_arg($arg, $map, $index) {
+function api_filename_load($first, $map, $index, $branch_name = NULL) {
+  $branches = api_get_branches();
+
   $end = count($map) - 1;
-  // Search for a dot going backwards. When we find one, we know we're in the basename section.
-  while(strpos($map[$end], '.') === FALSE && $end > $index) {
-    $end--;
-  }
-  return implode('/', array_slice($map, $index + 3, $end - $index + 1));
-}
+  $end -= in_array($map[$end], array('source', 'documentation'));
+  $end -= isset($branches[$map[$end]]);
+  $filename = implode('/', array_slice($map, $index, $end - $index + 1));
 
-/**
- * Quote unquote "access" control function which is mainly used to hide inapplicable branch tabs.
- */
-function api_tabchk($object_type = NULL, $object_name = NULL, $branch_name = NULL) {
-  // If the user isn't allowed in in the FIRST place, quit early.
-  if (!user_access('access API reference')) {
-    return FALSE;
-  }
-
-  // NULL means we're using the default branch.
-  if ($branch_name == NULL) {
-    $branch_name = variable_get('api_default_branch', 'HEAD');
-  }
-
-  // Are we talking about a *group* of objects here?
-  if ($object_name == NULL) {
-    // OK, no object name, let's see if there's ANYTHING in this branch of this type...
-    return (db_result(db_query("SELECT COUNT(*) FROM {api_documentation} WHERE object_type = '%s' AND branch_name = '%s'", $object_type, $branch_name)) >= 1);
-  }
-  else {
-    // We have all three, see if this branch carries this object of this type.
-    return (db_result(db_query("SELECT COUNT(*) FROM {api_documentation} WHERE object_type = '%s' AND object_name = '%s' AND branch_name = '%s'", $object_type, $object_name, $branch_name)) >= 1);
-  }
+  return api_object_load($filename, 'file', $branch_name);
 }
 
 /**
@@ -866,96 +850,72 @@ function api_page_global($global) {
 /**
  * Menu callback; displays documentation for a file.
  */
-function api_page_file($branch_name, $object_name) {
-// @@@ TODO: Figure out why $object_name is being split like this....
-  $object_name = func_get_args();
-  array_shift($object_name);
-  array_pop($object_name);
-  $object_name = implode('/', $object_name);
-
+function api_page_file($file) {
   drupal_add_css(drupal_get_path('module', 'api') .'/api.css');
 
-  $result = db_query("SELECT d.did, d.title, d.documentation, f.version FROM {api_documentation} d INNER JOIN {api_file} f ON d.did = f.did WHERE object_name = '%s' AND branch_name = '%s' AND object_type = 'file'", $object_name, $branch_name);
-  $file = db_fetch_object($result);
-  if (!$file) {
-    $result = db_query("SELECT d.object_name FROM {api_documentation} d WHERE d.object_name LIKE '%%/%s' AND branch_name = '%s' AND object_type = 'file'", $object_name, $branch_name);
-    if ($object_name = db_result($result)) {
-      drupal_goto('api/file/'. $object_name .'/'. $branch_name);
-    }
+  $output = '';
+
+  if (!empty($file->version)) {
+    $output .= '<h3>'. t('Version') .'</h3>';
+    $output .= '<p>'. $file->version .'</p>';
   }
-  if ($file) {
-    $output = '';
 
-    if (!empty($file->version)) {
-      $output .= '<h3>'. t('Version') .'</h3>';
-      $output .= '<p>'. $file->version .'</p>';
-    }
-
-    if (!empty($file->documentation)) {
-      $output .= '<h3>'. t('Description') .'</h3>';
-      $output .= api_link_documentation($file->documentation, $branch_name);
-    }
-
-    $headers = array(array('data' => t('Name'), 'field' => 'title'), t('Description'));
-    $rows = array();
-    $result = db_query("SELECT title, object_name, summary FROM {api_documentation} WHERE file_name = '%s' AND branch_name = '%s' AND object_type = 'constant'". tablesort_sql($headers), $object_name, $branch_name);
-    while ($object = db_fetch_object($result)) {
-      $rows[] = array(
-        l($object->title, 'api/constant/'. $object->object_name .'/'. $branch_name),
-        api_link_documentation($object->summary, $branch_name));
-    }
-    if (count($rows) > 0) {
-      $output .= '<h3>'. t('Constants') .'</h3>';
-      $output .= theme('table', $headers, $rows);
-    }
-
-    $headers = array(array('data' => t('Name'), 'field' => 'title'), t('Description'));
-    $rows = array();
-    $result = db_query("SELECT title, object_name, summary FROM {api_documentation} WHERE file_name = '%s' AND branch_name = '%s' AND object_type = 'global'". tablesort_sql($headers), $object_name, $branch_name);
-    while ($object = db_fetch_object($result)) {
-      $rows[] = array(
-        l($object->title, 'api/global/'. $object->object_name .'/'. $branch_name),
-        api_link_documentation($object->summary, $branch_name));
-    }
-    if (count($rows) > 0) {
-      $output .= '<h3>'. t('Globals') .'</h3>';
-      $output .= theme('table', $headers, $rows);
-    }
-
-    $headers = array(array('data' => t('Name'), 'field' => 'title'), t('Description'));
-    $rows = array();
-    $result = db_query("SELECT title, object_name, summary FROM {api_documentation} WHERE file_name = '%s' AND branch_name = '%s' AND object_type = 'function'". tablesort_sql($headers), $object_name, $branch_name);
-    while ($object = db_fetch_object($result)) {
-      $rows[] = array(
-        l($object->title, 'api/function/'. $object->object_name .'/'. $branch_name),
-        api_link_documentation($object->summary, $branch_name));
-    }
-    if (count($rows) > 0) {
-      $output .= '<h3>'. t('Functions') .'</h3>';
-      $output .= theme('table', $headers, $rows);
-    }
-
-    return $output;
+  if (!empty($file->documentation)) {
+    $output .= '<h3>'. t('Description') .'</h3>';
+    $output .= api_link_documentation($file->documentation, $file->branch_name);
   }
-  else {
-    drupal_not_found();
+
+  $headers = array(array('data' => t('Name'), 'field' => 'title'), t('Description'));
+  $rows = array();
+  $result = db_query("SELECT title, object_name, summary FROM {api_documentation} WHERE file_name = '%s' AND branch_name = '%s' AND object_type = 'constant'". tablesort_sql($headers), $file->object_name, $file->branch_name);
+  while ($object = db_fetch_object($result)) {
+    $rows[] = array(
+      l($object->title, 'api/constant/'. $object->object_name .'/'. $file->branch_name),
+      api_link_documentation($object->summary, $file->branch_name));
   }
+  if (count($rows) > 0) {
+    $output .= '<h3>'. t('Constants') .'</h3>';
+    $output .= theme('table', $headers, $rows);
+  }
+
+  $headers = array(array('data' => t('Name'), 'field' => 'title'), t('Description'));
+  $rows = array();
+  $result = db_query("SELECT title, object_name, summary FROM {api_documentation} WHERE file_name = '%s' AND branch_name = '%s' AND object_type = 'global'". tablesort_sql($headers), $file->object_name, $file->branch_name);
+  while ($object = db_fetch_object($result)) {
+    $rows[] = array(
+      l($object->title, 'api/global/'. $object->object_name .'/'. $file->branch_name),
+      api_link_documentation($object->summary, $file->branch_name));
+  }
+  if (count($rows) > 0) {
+    $output .= '<h3>'. t('Globals') .'</h3>';
+    $output .= theme('table', $headers, $rows);
+  }
+
+  $headers = array(array('data' => t('Name'), 'field' => 'title'), t('Description'));
+  $rows = array();
+  $result = db_query("SELECT title, object_name, summary FROM {api_documentation} WHERE file_name = '%s' AND branch_name = '%s' AND object_type = 'function'". tablesort_sql($headers), $file->object_name, $file->branch_name);
+  while ($object = db_fetch_object($result)) {
+    $rows[] = array(
+      l($object->title, 'api/function/'. $object->object_name .'/'. $file->branch_name),
+      api_link_documentation($object->summary, $file->branch_name));
+  }
+  if (count($rows) > 0) {
+    $output .= '<h3>'. t('Functions') .'</h3>';
+    $output .= theme('table', $headers, $rows);
+  }
+
+  drupal_set_title($file->title);
+  return $output;
 }
 
 /**
  * Menu callback; displays source code for a file.
  */
-function api_page_file_source($branch_name, $object_name) {
+function api_page_file_source($file) {
   drupal_add_css(drupal_get_path('module', 'api') .'/api.css');
 
-  $result = db_query("SELECT title, code FROM {api_documentation} WHERE object_name = '%s' AND branch_name = '%s' AND object_type = 'file'", $object_name, $branch_name);
-  if ($file = db_fetch_object($result)) {
-    drupal_set_title($file->title);
-    return api_link_code($file->code, $branch_name);
-  }
-  else {
-    drupal_not_found();
-  }
+  drupal_set_title($file->title);
+  return api_link_code($file->code, $file->branch_name);
 }
 
 /**
