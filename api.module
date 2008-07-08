@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.54 2008/06/26 06:48:50 drumm Exp $
+// $Id: api.module,v 1.55 2008/07/08 06:53:57 drumm Exp $
 
 /**
  * @file
@@ -157,9 +157,17 @@ function api_menu() {
     'type' => MENU_CALLBACK,
   );
 
+  $items['api/search'] = array(
+    'title' => 'API Search',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('api_search_form', $default_branch),
+    'access callback' => $access_callback,
+    'access arguments' => $access_arguments,
+    'type' => MENU_CALLBACK,
+  );
   $items['apis'] = array(
     'title' => 'API search',
-    'page callback' => 'api_search_listing',
+    'page callback' => 'api_search_redirect',
     'access callback' => $access_callback,
     'access arguments' => $access_arguments,
     'type' => MENU_CALLBACK,
@@ -195,8 +203,6 @@ function api_menu() {
     'access arguments' => $access_arguments,
     'type' => MENU_CALLBACK,
   );
-  // Note: We can't support Documentation / References for the "default" branch case.
-  // If we tried it, we'd suddenly get extra tabs in the branch list.
   $items['api/constant/%api_object'] = array(
     'title' => 'Constant',
     'load arguments' => array('constant', $default_branch),
@@ -382,7 +388,6 @@ function api_menu() {
       'page arguments' => array($branch->branch_name, 3),
       'access callback' => $access_callback,
       'access arguments' => $access_arguments,
-      //'type' => ($branch->branch_name == $default_branch) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
       'type' => MENU_LOCAL_TASK,
     );
   }
@@ -466,7 +471,7 @@ function api_block($op, $delta = NULL, $edit = array()) {
 
           return array(
             'subject' => t('Search @branch', array('@branch' => $branches[$branch]->title)),
-            'content' => drupal_get_form('api_search_form', $branches[$branch]),
+            'content' => drupal_get_form('api_search_form', $branches[$branch]->branch_name),
           );
 
         case 'navigation':
@@ -539,17 +544,17 @@ function api_get_active_branch() {
   return variable_get('api_default_branch', 'HEAD');
 }
 
-function api_search_form($form_state, $branch) {
+function api_search_form($form_state, $branch_name) {
   $form = array();
 
   $form['branch_name'] = array(
     '#type' => 'value',
-    '#value' => $branch->branch_name,
+    '#value' => $branch_name,
   );
   $form['search'] = array(
     '#title' => t('Function, file, or topic'),
     '#type' => 'textfield',
-    '#autocomplete_path' => 'api/autocomplete/'. $branch->branch_name,
+    '#autocomplete_path' => 'api/autocomplete/'. $branch_name,
     '#default_value' => '',
     '#required' => TRUE,
   );
@@ -565,16 +570,19 @@ function api_search_form_submit($form, &$form_state) {
   $form_state['redirect'] = 'api/search/'. $form_state['values']['branch_name'] .'/'. $form_state['values']['search'];
 }
 
+function api_search_redirect() {
+  $search_text = func_get_args();
+  drupal_goto('api/search/'. variable_get('api_default_branch', 'HEAD') .'/'. implode('/', $search_text));
+}
+
 /**
  * Menu callback; perform a global search for documentation.
  */
-function api_search_listing($branch_name, $search_text = '') {
-  if ($search_text == '') {
-    $search_text = $branch_name;
-    $branch_name = variable_get('api_default_branch', 'HEAD');
-  }
-
-  drupal_set_title(t('API Search for &ldquo;%search&rdquo; in %branch', array('%search' => $search_text, '%branch' => $branch_name)));
+function api_search_listing($branch_name) {
+  $search_text = func_get_args();
+  array_shift($search_text);
+  $search_text = implode('/', $search_text);
+  drupal_set_title(t('Search for %search', array('%search' => $search_text)));
 
   // Exact match.
   $result = db_query("SELECT * FROM {api_documentation} WHERE branch_name = '%s' AND title = '%s'", $branch_name, $search_text);
@@ -603,9 +611,9 @@ function api_search_listing($branch_name, $search_text = '') {
 /**
  * Prepare a listing of potential documentation matches for a branch.
  */
-function api_autocomplete($branch_name, $search) {
+function api_autocomplete($branch_name, $search = '') {
   $matches = array();
-  $result = db_query("SELECT title FROM {api_documentation} WHERE title LIKE '%%%s%%' AND branch_name = '%s' ORDER BY LENGTH(title)", 0, 20);
+  $result = db_query("SELECT title FROM {api_documentation} WHERE title LIKE '%%%s%%' AND branch_name = '%s' ORDER BY LENGTH(title)", $search, $branch_name, 0, 20);
   while ($r = db_fetch_object($result)) {
     $matches[$r->title] = check_plain($r->title);
   }
