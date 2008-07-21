@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.31 2008/07/21 02:18:08 drumm Exp $
+// $Id: parser.inc,v 1.32 2008/07/21 05:33:22 drumm Exp $
 
 /**
  * @file
@@ -40,17 +40,17 @@ function api_parse_php_manual($location) {
  */
 function api_parse_file($file_path, $branch_name, $file_name) {
   if (preg_match('!\.(php|module|inc|install|engine|theme)$!', $file_name)) {
-    watchdog('api', 'Parsing %path.', array('%path' => $file_path));
+    watchdog('api', 'Parsing %branch %path.', array('%branch' => $branch_name, '%path' => $file_name));
     api_parse_php_file($file_path, $branch_name, $file_name);
     return TRUE;
   }
   if (preg_match('!\.(txt)$!', $file_name)) {
-    watchdog('api', 'Parsing %path.', array('%path' => $file_path));
+    watchdog('api', 'Parsing %branch %path.', array('%branch' => $branch_name, '%path' => $file_name));
     api_parse_text_file($file_path, $branch_name, $file_name);
     return TRUE;
   }
   if (preg_match('!\.(htm|html)$!', $file_name)) {
-    watchdog('api', 'Parsing %path.', array('%path' => $file_path));
+    watchdog('api', 'Parsing %branch %path.', array('%branch' => $branch_name, '%path' => $file_name));
     api_parse_html_file($file_path, $branch_name, $file_name);
     return TRUE;
   }
