@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.30 2008/06/24 06:48:55 drumm Exp $
+// $Id: parser.inc,v 1.31 2008/07/21 02:18:08 drumm Exp $
 
 /**
  * @file
@@ -69,14 +69,15 @@ function api_parse_text_file($file_path, $branch_name, $file_name) {
 
   // Set up documentation block for file, in case it is not explicitly defined.
   $docblocks[0] = array(
-      'object_name' => $file_name,
-      'branch_name' => $branch_name,
-      'object_type' => 'file',
-      'file_name' => $file_name,
-      'title' => strpos($file_name, '/') ? substr($file_name, strrpos($file_name, '/') + 1) : $file_name,
-      'summary' => api_documentation_summary(api_format_documentation($source, $branch_name)),
-      'documentation' => api_format_documentation($source, $branch_name),
-      'code' => api_format_php($source));
+    'object_name' => $file_name,
+    'branch_name' => $branch_name,
+    'object_type' => 'file',
+    'file_name' => $file_name,
+    'title' => strpos($file_name, '/') ? substr($file_name, strrpos($file_name, '/') + 1) : $file_name,
+    'summary' => api_documentation_summary(api_format_documentation($source, $branch_name)),
+    'documentation' => api_format_documentation($source, $branch_name),
+    'code' => api_format_php($source),
+  );
   $docblocks[0]['version'] = '';
   $version_match = array();
   if (preg_match('!\$'.'Id: .*?,v (.*?) (.*?) (.*?) (.*?) Exp \$!', $source, $version_match)) {
@@ -175,14 +176,15 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
 
   // Set up documentation block for file, in case it is not explicitly defined.
   $docblocks[0] = array(
-      'object_name' => $file_name,
-      'branch_name' => $branch_name,
-      'object_type' => 'file',
-      'file_name' => $file_name,
-      'title' => strpos($file_name, '/') ? substr($file_name, strrpos($file_name, '/') + 1) : $file_name,
-      'summary' => '',
-      'documentation' => '',
-      'code' => api_format_php($source));
+    'object_name' => $file_name,
+    'branch_name' => $branch_name,
+    'object_type' => 'file',
+    'file_name' => $file_name,
+    'title' => strpos($file_name, '/') ? substr($file_name, strrpos($file_name, '/') + 1) : $file_name,
+    'summary' => '',
+    'documentation' => '',
+    'code' => api_format_php($source),
+  );
   $docblocks[0]['version'] = '';
   $version_match = array();
   if (preg_match('!\$'.'Id: .*?,v (.*?) (.*?) (.*?) (.*?) Exp \$!', $source, $version_match)) {
