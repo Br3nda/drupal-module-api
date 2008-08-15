@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.57 2008/08/15 07:59:06 drumm Exp $
+// $Id: api.module,v 1.58 2008/08/15 07:59:50 drumm Exp $
 
 /**
  * @file
@@ -433,7 +433,7 @@ function api_object_load($object_name, $object_type, $branch_name = NULL) {
     $query['fields'][] = 'af.*';
   }
   // Now build it
-  $api_object = db_fetch_object(db_query("SELECT ".implode(', ', $query['fields'])." FROM ".implode(" ", $query['tables'])." ".$query['where'], $query['arguments']));
+  $api_object = db_fetch_object(db_query("SELECT ". implode(', ', $query['fields']) ." FROM ". implode(" ", $query['tables']) ." ". $query['where'], $query['arguments']));
   if ($api_object) {
     return $api_object;
   }
