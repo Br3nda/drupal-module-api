@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.32 2008/07/21 05:33:22 drumm Exp $
+// $Id: parser.inc,v 1.33 2008/08/15 08:01:10 drumm Exp $
 
 /**
  * @file
@@ -32,29 +32,6 @@ function api_parse_php_manual($location) {
       api_save_documentation($docblock);
     }
   }
-}
-
-/**
- * Read in the file at the given path and pass it off to the appropriate handler
- * for parsing.
- */
-function api_parse_file($file_path, $branch_name, $file_name) {
-  if (preg_match('!\.(php|module|inc|install|engine|theme)$!', $file_name)) {
-    watchdog('api', 'Parsing %branch %path.', array('%branch' => $branch_name, '%path' => $file_name));
-    api_parse_php_file($file_path, $branch_name, $file_name);
-    return TRUE;
-  }
-  if (preg_match('!\.(txt)$!', $file_name)) {
-    watchdog('api', 'Parsing %branch %path.', array('%branch' => $branch_name, '%path' => $file_name));
-    api_parse_text_file($file_path, $branch_name, $file_name);
-    return TRUE;
-  }
-  if (preg_match('!\.(htm|html)$!', $file_name)) {
-    watchdog('api', 'Parsing %branch %path.', array('%branch' => $branch_name, '%path' => $file_name));
-    api_parse_html_file($file_path, $branch_name, $file_name);
-    return TRUE;
-  }
-  return FALSE;
 }
 
 /**
@@ -515,6 +492,9 @@ function api_save_documentation(&$docblock) {
     }
   }
 
+  api_schedule_update_references();
+  api_schedule_cache_clear();
+
   return $did;
 }
 
@@ -752,9 +732,125 @@ function api_reference($branch_name, $to_type, $to_name, $from_did) {
 }
 
 /**
+ * References do not need to be repeatedly updated, just at the end of a
+ * request that involved parsing.
+ */
+function api_schedule_update_references() {
+  static $scheduled = FALSE;
+
+  if (!$scheduled) {
+    register_shutdown_function('api_update_references');
+    $scheduled = TRUE;
+  }
+}
+
+/**
  * Update the references that were collected.
  */
 function api_update_references() {
-  // First, figure out all the dids of the object/branch/types.
+  // Figure out all the dids of the object/branch/types.
   db_query('UPDATE {api_reference_storage} r, {api_documentation} d SET r.to_did = d.did WHERE r.object_name = d.object_name AND r.branch_name = d.branch_name AND r.object_type = d.object_type');
+}
+
+function api_schedule_cache_clear() {
+  register_shutdown_function('cache_clear_all');
+}
+
+function api_update_all_branches() {
+  foreach (api_get_branches() as $branch) {
+    api_update_branch($branch);
+  }
+}
+
+function api_update_branch($branch) {
+  static $parse_functions = array(
+    'php' => 'api_parse_php_file',
+    'module' => 'api_parse_php_file',
+    'inc' => 'api_parse_php_file',
+    'install' => 'api_parse_php_file',
+    'engine' => 'api_parse_php_file',
+    'theme' => 'api_parse_php_file',
+
+    'txt' => 'api_parse_text_file',
+
+    'htm' => 'api_parse_html_file',
+    'html' => 'api_parse_html_file',
+  );
+
+  // List all documented files for the branch.
+  $files = array();
+  $result = db_query("SELECT f.did, f.modified, d.object_name FROM {api_documentation} d INNER JOIN {api_file} f ON d.did = f.did WHERE d.branch_name = '%s' AND d.object_type = 'file'", $branch->branch_name);
+  while ($file = db_fetch_object($result)) {
+    $files[$file->object_name] = $file; 
+  }
+
+  foreach (api_scan_directories($branch->directory) as $path => $file_name) {
+    preg_match('!\.([a-z]*)$!', $file_name, $matches);
+    if (isset($parse_functions[$matches[1]])) {
+      if (isset($files[$file_name])) {
+        $parse = (filemtime($path) > $files[$file_name]->modified);
+        unset($files[$file_name]); // All remaining files will be removed.
+      }
+      else { // New file.
+        $parse = TRUE;
+      }
+      if ($parse) {
+        job_queue_add($parse_functions[$matches[1]], t('API parse %branch %file'), array($path, '%branch' => $branch->branch_name, '%file' => $file_name), drupal_get_path('module', 'api') .'/parser.inc', TRUE);
+      }
+    }
+  }
+
+  // Remove outdated files.
+  foreach (array_keys($files) as $file_name) {
+    watchdog('api', 'Removing %file.', array('%file' => $file_name));
+    $result = db_query("SELECT ad.did FROM {api_documentation} ad WHERE ad.file_name = '%s' AND ad.branch_name = '%s'", $file_name, $branch->branch_name);
+    while ($doc = db_fetch_object($result)) {
+      db_query("DELETE FROM {api_documentation} WHERE did = %d", $doc->did);
+      db_query("DELETE FROM {api_file} WHERE did = %d", $doc->did);
+      db_query("DELETE FROM {api_function} WHERE did = %d", $doc->did);
+      db_query("DELETE FROM {api_reference_storage} WHERE from_did = %d OR to_did = %d", $doc->did, $doc->did);
+    }
+    api_schedule_cache_clear();
+  }
+}
+
+/**
+ * Find all the files in the directories specified for a branch.
+ */
+function api_scan_directories($directories) {
+  $directory_array = explode(':', $directories);
+
+  if (count($directory_array) > 1) {
+    $directories_components = array();
+    foreach ($directory_array as $directory) {
+      $directory_components = array();
+      $parts = explode('/', $directory);
+      foreach ($parts as $part) {
+        if (strlen($part)) {
+          array_unshift($directory_components, reset($directory_components) .'/'. $part);
+        }
+      }
+      $directories_components[] = $directory_components;
+    }
+
+    $common_ancestor_components = call_user_func_array('array_intersect', $directories_components);
+    $common_ancestor = reset($common_ancestor_components);
+  }
+  else {
+    $common_ancestor = $directories;
+  }
+
+  $source_files = array();
+  foreach ($directory_array as $directory) {
+    $files = file_scan_directory($directory, '.*');
+    foreach ($files as $path => $file) {
+      if (strpos($path, '/.') !== FALSE) {
+        continue;
+      }
+      $file_name = substr($path, strlen($common_ancestor) + 1);
+
+      $source_files[$path] = $file_name;
+    }
+  }
+  return $source_files;
 }

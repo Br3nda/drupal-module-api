@@ -1,5 +1,6 @@
-; $Id: api.info,v 1.5 2008/05/19 07:20:48 drumm Exp $
+; $Id: api.info,v 1.6 2008/08/15 08:01:10 drumm Exp $
 name = API
 description = Generates and displays API documentation pages.
 package = Development
 core = 6.x
+dependencies[] = job_queue
