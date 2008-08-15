@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.55 2008/07/08 06:53:57 drumm Exp $
+// $Id: api.module,v 1.56 2008/08/15 07:56:49 drumm Exp $
 
 /**
  * @file
@@ -1382,16 +1382,16 @@ function api_link_name($name, $branch_name, $prepend = '', $append = '') {
   }
 
   if (array_key_exists($name, $local_objects['function'])) {
-    return $prepend . l($name, 'api/function/'. $local_objects['function'][$name]->object_name .'/'. $branch_name, array('title' => $local_objects['function'][$name]->summary, 'class' => 'local')) . $append;
+    return $prepend . l($name, 'api/function/'. $local_objects['function'][$name]->object_name .'/'. $branch_name, array('attributes' => array('title' => $local_objects['function'][$name]->summary, 'class' => 'local'))) . $append;
   }
   elseif (array_key_exists($name, $local_objects['file'])) {
-    return l($name, 'api/file/'. $local_objects['file'][$name]->object_name .'/'. $branch_name, array('title' => $local_objects['file'][$name]->summary, 'class' => 'local'));
+    return l($name, 'api/file/'. $local_objects['file'][$name]->object_name .'/'. $branch_name, array('attributes' => array('title' => $local_objects['file'][$name]->summary, 'class' => 'local')));
   }
   elseif (array_key_exists($name, $local_objects['constant'])) {
-    return l($name, 'api/constant/'. $local_objects['constant'][$name]->object_name .'/'. $branch_name, array('title' => $local_objects['constant'][$name]->summary, 'class' => 'local'));
+    return l($name, 'api/constant/'. $local_objects['constant'][$name]->object_name .'/'. $branch_name, array('attributes' => array('title' => $local_objects['constant'][$name]->summary, 'class' => 'local')));
   }
   elseif (array_key_exists($name, $local_objects['global'])) {
-    return l($name, 'api/global/'. $local_objects['global'][$name]->object_name .'/'. $branch_name, array('title' => $local_objects['global'][$name]->summary, 'class' => 'local'));
+    return l($name, 'api/global/'. $local_objects['global'][$name]->object_name .'/'. $branch_name, array('attributes' => array('title' => $local_objects['global'][$name]->summary, 'class' => 'local')));
   }
   elseif (array_key_exists($name, $php_functions)) {
     $link = strtr(variable_get('api_php_funcpath', 'http://php.net/!function'), array('!function' => $name));

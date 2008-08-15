@@ -1,11 +1,11 @@
 <?php
-// $Id: api_link_documentation.test,v 1.2 2008/05/19 07:09:39 drumm Exp $
+// $Id: api_link_documentation.test,v 1.3 2008/08/15 07:56:49 drumm Exp $
 
-class ApiLinkDocumentationTest extends DrupalTestCase {
-  function get_info() {
+class ApiLinkDocumentationTest extends DrupalWebTestCase {
+  function getInfo() {
     return array(
       'name' => t('api_link_documentation()'),
-      'desc' => t('Test the api_link_documentation() function.'),
+      'description' => t('Test the api_link_documentation() function.'),
       'group' => 'API Module',
     );
   }
