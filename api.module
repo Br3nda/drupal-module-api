@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.56 2008/08/15 07:56:49 drumm Exp $
+// $Id: api.module,v 1.57 2008/08/15 07:59:06 drumm Exp $
 
 /**
  * @file
@@ -613,7 +613,7 @@ function api_search_listing($branch_name) {
  */
 function api_autocomplete($branch_name, $search = '') {
   $matches = array();
-  $result = db_query("SELECT title FROM {api_documentation} WHERE title LIKE '%%%s%%' AND branch_name = '%s' ORDER BY LENGTH(title)", $search, $branch_name, 0, 20);
+  $result = db_query_range("SELECT title FROM {api_documentation} WHERE title LIKE '%%%s%%' AND branch_name = '%s' ORDER BY LENGTH(title)", $search, $branch_name, 0, 20);
   while ($r = db_fetch_object($result)) {
     $matches[$r->title] = check_plain($r->title);
   }
