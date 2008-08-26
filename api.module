@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.60 2008/08/26 05:41:28 drumm Exp $
+// $Id: api.module,v 1.61 2008/08/26 05:53:12 drumm Exp $
 
 /**
  * @file
@@ -573,45 +573,53 @@ function api_block($op, $delta = NULL, $edit = array()) {
 }
 
 function api_get_active_branch() {
-  if (arg(0) == 'api') {
-    if (in_array(arg(1), array('function_dump', 'functions', 'constants', 'globals', 'files', 'groups', 'search'))) {
-      $possible_branch = arg(2);
-    }
-    elseif (in_array(arg(1), array('function', 'constant', 'global', 'group'))) {
-      $possible_branch = arg(3);
-    }
-    elseif (arg(1) == 'file') {
-      // Starting at arg(2), we have a variable number of directories. The
-      // possible branch name is either in the last, or, if we are on a
-      // secondary local task, second to last argument.
-      $current = arg(3);
-      $i = 4;
-      while (!is_null(arg($i))) {
-        $last = $current;
-        $current = arg($i);
-        $i += 1;
-      }
+  static $branch;
 
-      if (in_array($current, array('documentation', 'source'))) {
-        $possible_branch = $last;
+  if (!isset($branch)) {
+    if (arg(0) == 'api') {
+      if (in_array(arg(1), array('function_dump', 'functions', 'constants', 'globals', 'files', 'groups', 'search'))) {
+        $possible_branch = arg(2);
+      }
+      elseif (in_array(arg(1), array('function', 'constant', 'global', 'group'))) {
+        $possible_branch = arg(3);
+      }
+      elseif (arg(1) == 'file') {
+        // Starting at arg(2), we have a variable number of directories. The
+        // possible branch name is either in the last, or, if we are on a
+        // secondary local task, second to last argument.
+        $current = arg(3);
+        $i = 4;
+        while (!is_null(arg($i))) {
+          $last = $current;
+          $current = arg($i);
+          $i += 1;
+        }
+
+        if (in_array($current, array('documentation', 'source'))) {
+          $possible_branch = $last;
+        }
+        else {
+          $possible_branch = $current;
+        }
       }
       else {
-        $possible_branch = $current;
+        // Maybe we are on one of the branch home pages.
+        $possible_branch = arg(1);
       }
     }
-    else {
-      // Maybe we are on one of the branch home pages.
-      $possible_branch = arg(1);
+
+    if (isset($possible_branch)) {
+      $branches = api_get_branches();
+      if (isset($branches[$possible_branch])) {
+        $branch = $possible_branch;
+      }
+    }
+    if (!isset($branch)) {
+      $branch = variable_get('api_default_branch', 'HEAD');
     }
   }
 
-  if (isset($possible_branch)) {
-    $branches = api_get_branches();
-    if (isset($branches[$possible_branch])) {
-      return $possible_branch;
-    }
-  }
-  return variable_get('api_default_branch', 'HEAD');
+  return $branch;
 }
 
 function api_search_form($form_state, $branch_name) {
