@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.35 2008/08/26 06:20:18 drumm Exp $
+// $Id: parser.inc,v 1.36 2008/08/26 09:58:27 drumm Exp $
 
 /**
  * @file
@@ -29,7 +29,7 @@ function api_parse_php_manual($location) {
         'parameters' => '',
         'return' => '',
       );
-      api_save_documentation($docblock);
+      api_save_documentation(array($docblock));
     }
   }
 }
@@ -41,11 +41,8 @@ function api_parse_php_manual($location) {
 function api_parse_text_file($file_path, $branch_name, $file_name) {
   $source = file_get_contents($file_path);
 
-  $docblock_matches = array();
-  $docblocks = array();
-
   // Set up documentation block for file, in case it is not explicitly defined.
-  $docblocks[0] = array(
+  $docblock = array(
     'object_name' => $file_name,
     'branch_name' => $branch_name,
     'object_type' => 'file',
@@ -54,32 +51,15 @@ function api_parse_text_file($file_path, $branch_name, $file_name) {
     'summary' => api_documentation_summary(api_format_documentation($source, $branch_name)),
     'documentation' => api_format_documentation($source, $branch_name),
     'code' => api_format_php($source),
+    'version' => '',
+    'modified' => filemtime($file_path),
   );
-  $docblocks[0]['version'] = '';
   $version_match = array();
   if (preg_match('!\$'.'Id: .*?,v (.*?) (.*?) (.*?) (.*?) Exp \$!', $source, $version_match)) {
-    $docblocks[0]['version'] = $version_match[1] .' (checked in on '. $version_match[2] .' at '. $version_match[3] .' by '. $version_match[4] .')';
-  }
-  $docblocks[0]['modified'] = filemtime($file_path);
-
-  $old_dids = array();
-  $result = db_query("SELECT did FROM {api_documentation} WHERE branch_name = '%s' AND file_name = '%s'", $branch_name, $file_name);
-  while ($object = db_fetch_object($result)) {
-    $old_dids[] = $object->did;
+    $docblock['version'] = $version_match[1] .' (checked in on '. $version_match[2] .' at '. $version_match[3] .' by '. $version_match[4] .')';
   }
 
-  $dids = array();
-  foreach ($docblocks as $docblock) {
-    $dids[] = api_save_documentation($docblock);
-  }
-  $old_dids = array_diff($old_dids, $dids);
-  if (count($old_dids) > 0) {
-    $old_dids = implode(',', $old_dids);
-    db_query('DELETE FROM {api_documentation} WHERE did IN (%s)', $old_dids);
-    db_query('DELETE FROM {api_file} WHERE did IN (%s)', $old_dids);
-    db_query('DELETE FROM {api_function} WHERE did IN (%s)', $old_dids);
-    db_query('DELETE FROM {api_reference_storage} WHERE from_did IN (%s) OR to_did IN (%s)', $old_dids, $old_dids);
-  }
+  api_save_documentation(array($docblock), $branch_name, $file_name);
 }
 
 /**
@@ -88,10 +68,8 @@ function api_parse_text_file($file_path, $branch_name, $file_name) {
 function api_parse_html_file($file_path, $branch_name, $file_name) {
   $source = file_get_contents($file_path);
 
-  $docblocks = array();
-
   // Set up documentation block for file, in case it is not explicitly defined.
-  $docblocks[0] = array(
+  $docblock = array(
     'object_name' => $file_name,
     'branch_name' => $branch_name,
     'object_type' => 'file',
@@ -100,42 +78,24 @@ function api_parse_html_file($file_path, $branch_name, $file_name) {
     'summary' => '',
     'documentation' => '',
     'code' => '<pre>'. htmlspecialchars($source) .'</pre>',
+    'version' => '',
+    'modified' => filemtime($file_path),
   );
   $title_match = array();
   if (preg_match('!<title>(.*)</title>!is', $source, $title_match)) {
-    $docblocks[0]['title'] = $title_match[1];
+    $docblock['title'] = $title_match[1];
   }
   $documentation_match = array();
   if (preg_match('!<body>(.*?</h1>)?(.*)</body>!is', $source, $documentation_match)) {
-    $docblocks[0]['documentation'] = $documentation_match[2];
-    $docblocks[0]['summary'] = api_documentation_summary($documentation_match[2]);
+    $docblock['documentation'] = $documentation_match[2];
+    $docblock['summary'] = api_documentation_summary($documentation_match[2]);
   }
-
-  $docblocks[0]['version'] = '';
   $version_match = array();
   if (preg_match('!\$'.'Id: .*?,v (.*?) (.*?) (.*?) (.*?) Exp \$!', $source, $version_match)) {
-    $docblocks[0]['version'] = $version_match[1] .' (checked in on '. $version_match[2] .' at '. $version_match[3] .' by '. $version_match[4] .')';
-  }
-  $docblocks[0]['modified'] = filemtime($file_path);
-
-  $old_dids = array();
-  $result = db_query("SELECT did FROM {api_documentation} WHERE branch_name = '%s' AND file_name = '%s'", $branch_name, $file_name);
-  while ($object = db_fetch_object($result)) {
-    $old_dids[] = $object->did;
+    $docblock['version'] = $version_match[1] .' (checked in on '. $version_match[2] .' at '. $version_match[3] .' by '. $version_match[4] .')';
   }
 
-  $dids = array();
-  foreach ($docblocks as $docblock) {
-    $dids[] = api_save_documentation($docblock);
-  }
-  $old_dids = array_diff($old_dids, $dids);
-  if (count($old_dids) > 0) {
-    $old_dids = implode(',', $old_dids);
-    db_query('DELETE FROM {api_documentation} WHERE did IN (%s)', $old_dids);
-    db_query('DELETE FROM {api_file} WHERE did IN (%s)', $old_dids);
-    db_query('DELETE FROM {api_function} WHERE did IN (%s)', $old_dids);
-    db_query('DELETE FROM {api_reference_storage} WHERE from_did IN (%s) OR to_did IN (%s)', $old_dids, $old_dids);
-  }
+  api_save_documentation(array($docblock), $branch_name, $file_name);
 }
 
 /**
@@ -148,7 +108,6 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
   $source = str_replace("\r\n", "\n", $source);
   $source = str_replace("\r", "\n", $source);
 
-  $docblock_matches = array();
   $docblocks = array();
 
   // Set up documentation block for file, in case it is not explicitly defined.
@@ -161,16 +120,17 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
     'summary' => '',
     'documentation' => '',
     'code' => api_format_php($source),
+    'version' => '',
+    'modified' => filemtime($file_path),
   );
-  $docblocks[0]['version'] = '';
   $version_match = array();
   if (preg_match('!\$'.'Id: .*?,v (.*?) (.*?) (.*?) (.*?) Exp \$!', $source, $version_match)) {
     $docblocks[0]['version'] = $version_match[1] .' (checked in on '. $version_match[2] .' at '. $version_match[3] .' by '. $version_match[4] .')';
   }
-  $docblocks[0]['modified'] = filemtime($file_path);
 
   $nested_groups = array();
 
+  $docblock_matches = array();
   preg_match_all('!/\*\*(.*?)\*/!s', $source, $docblock_matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
 
   foreach ($docblock_matches as $docblock_match) {
@@ -428,74 +388,83 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
     $docblocks[] = $docblock;
   }
 
-  $old_dids = array();
-  $result = db_query("SELECT did FROM {api_documentation} WHERE branch_name = '%s' AND file_name = '%s'", $branch_name, $file_name);
-  while ($object = db_fetch_object($result)) {
-    $old_dids[] = $object->did;
-  }
-
-  $dids = array();
-  foreach ($docblocks as $docblock) {
-    $dids[] = api_save_documentation($docblock);
-  }
-  $old_dids = array_diff($old_dids, $dids);
-  if (count($old_dids) > 0) {
-    $old_dids = implode(',', $old_dids);
-    db_query('DELETE FROM {api_documentation} WHERE did IN (%s)', $old_dids);
-    db_query('DELETE FROM {api_file} WHERE did IN (%s)', $old_dids);
-    db_query('DELETE FROM {api_function} WHERE did IN (%s)', $old_dids);
-    db_query('DELETE FROM {api_reference_storage} WHERE from_did IN (%s) OR to_did IN (%s)', $old_dids, $old_dids);
-  }
+  api_save_documentation($docblocks, $branch_name, $file_name);
 }
 
 /**
  * Save a documentation block into the database.
  *
- * @param &$docblock
+ * @param $docblock
  *   An array containing information about the documentation block.
+ * @param $branch_name
+ *   If set, old documentation will be removed for the branch and file name.
+ * @param $file_name
+ *   If set, old documentation will be removed for the branch and file name.
  * @return
  *   The documentation ID of the inserted/updated construct.
  */
-function api_save_documentation(&$docblock) {
-  $did = db_result(db_query("SELECT did FROM {api_documentation} WHERE object_name = '%s' AND branch_name = '%s' AND object_type = '%s'", $docblock['object_name'], $docblock['branch_name'], $docblock['object_type'], $docblock['file_name']));
-  if ($did > 0) {
-    db_query("UPDATE {api_documentation} SET title = '%s', file_name = '%s', summary = '%s', documentation = '%s', code = '%s' WHERE did = %d", $docblock['title'], $docblock['file_name'], $docblock['summary'], $docblock['documentation'], $docblock['code'], $did);
-  }
-  else {
-    db_query("INSERT INTO {api_documentation} (object_name, branch_name, object_type, title, file_name, summary, documentation, code) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')", $docblock['object_name'], $docblock['branch_name'], $docblock['object_type'], $docblock['title'], $docblock['file_name'], $docblock['summary'], $docblock['documentation'], $docblock['code']);
-    $did = db_last_insert_id('api_documentation', 'did');
+function api_save_documentation($docblocks, $branch_name = NULL, $file_name = NULL) {
+  if (!is_null($branch_name)) {
+    $old_dids = array();
+    $result = db_query("SELECT did FROM {api_documentation} WHERE branch_name = '%s' AND file_name = '%s'", $branch_name, $file_name);
+    while ($object = db_fetch_object($result)) {
+      $old_dids[] = $object->did;
+    }
   }
 
-  switch ($docblock['object_type']) {
-    case 'function':
-      db_query('DELETE FROM {api_function} WHERE did = %d', $did);
-      db_query("INSERT INTO {api_function} (did, signature, start_line, parameters, `return`) VALUES (%d, '%s', %d, '%s', '%s')", $did, $docblock['signature'], $docblock['start_line'], $docblock['parameters'], $docblock['return']);
+  $dids = array();
+  foreach ($docblocks as $docblock) {
+    $did = db_result(db_query("SELECT did FROM {api_documentation} WHERE object_name = '%s' AND branch_name = '%s' AND object_type = '%s'", $docblock['object_name'], $docblock['branch_name'], $docblock['object_type'], $docblock['file_name']));
+    if ($did > 0) {
+      db_query("UPDATE {api_documentation} SET title = '%s', file_name = '%s', summary = '%s', documentation = '%s', code = '%s' WHERE did = %d", $docblock['title'], $docblock['file_name'], $docblock['summary'], $docblock['documentation'], $docblock['code'], $did);
+    }
+    else {
+      db_query("INSERT INTO {api_documentation} (object_name, branch_name, object_type, title, file_name, summary, documentation, code) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')", $docblock['object_name'], $docblock['branch_name'], $docblock['object_type'], $docblock['title'], $docblock['file_name'], $docblock['summary'], $docblock['documentation'], $docblock['code']);
+      $did = db_last_insert_id('api_documentation', 'did');
+    }
 
-      if (isset($docblock['function calls'])) {
-        db_query("DELETE FROM {api_reference_storage} WHERE branch_name = '%s' AND object_type = 'function' AND from_did = %d", $docblock['branch_name'], $did);
-        foreach ($docblock['function calls'] as $function_name) {
-          api_reference($docblock['branch_name'], 'function', $function_name, $did);
+    switch ($docblock['object_type']) {
+      case 'function':
+        db_query('DELETE FROM {api_function} WHERE did = %d', $did);
+        db_query("INSERT INTO {api_function} (did, signature, start_line, parameters, `return`) VALUES (%d, '%s', %d, '%s', '%s')", $did, $docblock['signature'], $docblock['start_line'], $docblock['parameters'], $docblock['return']);
+
+        if (isset($docblock['function calls'])) {
+          db_query("DELETE FROM {api_reference_storage} WHERE branch_name = '%s' AND object_type = 'function' AND from_did = %d", $docblock['branch_name'], $did);
+          foreach ($docblock['function calls'] as $function_name) {
+            api_reference($docblock['branch_name'], 'function', $function_name, $did);
+          }
         }
-      }
-      break;
+        break;
 
-    case 'file':
-      db_query('DELETE FROM {api_file} WHERE did = %d', $did);
-      db_query("INSERT INTO {api_file} (did, modified, version) VALUES (%d, %d, '%s')", $did, $docblock['modified'], $docblock['version']);
-      break;
+      case 'file':
+        db_query('DELETE FROM {api_file} WHERE did = %d', $did);
+        db_query("INSERT INTO {api_file} (did, modified, version) VALUES (%d, %d, '%s')", $did, $docblock['modified'], $docblock['version']);
+        break;
+    }
+
+    if (isset($docblock['groups'])) {
+      db_query("DELETE FROM {api_reference_storage} WHERE branch_name = '%s' AND object_type = 'group' AND from_did = %d", $docblock['branch_name'], $did);
+      foreach ($docblock['groups'] as $group_name) {
+        api_reference($docblock['branch_name'], 'group', $group_name, $did);
+      }
+    }
+
+    $dids[] = $did;
   }
 
-  if (isset($docblock['groups'])) {
-    db_query("DELETE FROM {api_reference_storage} WHERE branch_name = '%s' AND object_type = 'group' AND from_did = %d", $docblock['branch_name'], $did);
-    foreach ($docblock['groups'] as $group_name) {
-      api_reference($docblock['branch_name'], 'group', $group_name, $did);
+  if (!is_null($branch_name)) {
+    $old_dids = array_diff($old_dids, $dids);
+    if (count($old_dids) > 0) {
+      $old_dids = implode(',', $old_dids);
+      db_query('DELETE FROM {api_documentation} WHERE did IN (%s)', $old_dids);
+      db_query('DELETE FROM {api_file} WHERE did IN (%s)', $old_dids);
+      db_query('DELETE FROM {api_function} WHERE did IN (%s)', $old_dids);
+      db_query('DELETE FROM {api_reference_storage} WHERE from_did IN (%s) OR to_did IN (%s)', $old_dids, $old_dids);
     }
   }
 
   api_schedule_update_references();
   api_schedule_cache_clear();
-
-  return $did;
 }
 
 /**
