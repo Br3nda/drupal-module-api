@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.62 2008/08/26 05:55:15 drumm Exp $
+// $Id: api.module,v 1.63 2008/08/26 06:03:59 drumm Exp $
 
 /**
  * @file
@@ -694,8 +694,7 @@ function api_autocomplete($branch_name, $search = '') {
   while ($r = db_fetch_object($result)) {
     $matches[$r->title] = check_plain($r->title);
   }
-  print drupal_to_js($matches);
-  exit();
+  print drupal_json($matches);
 }
 
 /**
