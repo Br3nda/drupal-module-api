@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.59 2008/08/15 08:01:10 drumm Exp $
+// $Id: api.module,v 1.60 2008/08/26 05:41:28 drumm Exp $
 
 /**
  * @file
@@ -79,6 +79,9 @@ The module indexes code branches during cron runs, so make sure the site has cro
 </p>
 ', array('!api_site' => l('http://api.drupal.org', 'http://api.drupal.org', array('absolute' => TRUE)), '!api_settings_page' => l(t('API settings page'), 'admin/settings/api')));
       return $output;
+
+    case 'admin/settings/api/refresh':
+      return t('Parse all indexed code files again, even if they have not been modified.');
   }
 }
 
@@ -180,10 +183,69 @@ function api_menu() {
   );
   $items['admin/settings/api'] = array(
     'title' => 'API reference',
-    'description' => 'Configure Drupal branches for documentation.',
+    'description' => 'Configure branches for documentation.',
     'access callback' => 'user_access',
     'access arguments' => array('administer API reference'),
-    'page callback' => 'api_page_admin',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('api_page_admin_form'),
+    'file' => 'api.admin.inc',
+  );
+  $items['admin/settings/api/branches'] = array(
+    'title' => 'Branches',
+    'access callback' => 'user_access',
+    'access arguments' => array('administer API reference'),
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+  );
+  $items['admin/settings/api/branches/list'] = array(
+    'title' => 'List',
+    'access callback' => 'user_access',
+    'access arguments' => array('administer API reference'),
+    'type' => MENU_DEFAULT_LOCAL_TASK
+  );
+  $items['admin/settings/api/branches/new'] = array(
+    'title' => 'New branch',
+    'access callback' => 'user_access',
+    'access arguments' => array('administer API reference'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('api_branch_edit_form'),
+    'file' => 'api.admin.inc',
+    'type' => MENU_LOCAL_TASK,
+  );
+  $items['admin/settings/api/branches/%'] = array(
+    'title' => 'Edit @branch',
+    'title arguments' => array('@branch' => 4),
+    'access callback' => 'user_access',
+    'access arguments' => array('administer API reference'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('api_branch_edit_form', 4),
+    'file' => 'api.admin.inc',
+    'type' => MENU_CALLBACK,
+  );
+  $items['admin/settings/api/branches/%/delete'] = array(
+    'access callback' => 'user_access',
+    'access arguments' => array('administer API reference'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('api_branch_delete_form', 4),
+    'file' => 'api.admin.inc',
+    'type' => MENU_CALLBACK,
+  );
+  $items['admin/settings/api/php'] = array(
+    'title' => 'PHP manual',
+    'access callback' => 'user_access',
+    'access arguments' => array('administer API reference'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('api_php_manual_index_form'),
+    'file' => 'api.admin.inc',
+    'type' => MENU_LOCAL_TASK,
+  );
+  $items['admin/settings/api/refresh'] = array(
+    'title' => 'Refresh index',
+    'access callback' => 'user_access',
+    'access arguments' => array('administer API reference'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('api_reindex_form'),
+    'file' => 'api.admin.inc',
+    'type' => MENU_LOCAL_TASK,
   );
 
   // Function dumps for IDEs and code editors.
@@ -447,6 +509,14 @@ function api_object_load($object_name, $object_type, $branch_name = NULL) {
  */
 function api_perm() {
   return array('access API reference', 'administer API reference');
+}
+
+function api_theme() {
+  return array(
+    'api_branch_table' => array(
+      'arguments' => array('element' => NULL),
+    ),
+  );
 }
 
 function api_block($op, $delta = NULL, $edit = array()) {
@@ -984,191 +1054,6 @@ function api_page_group($group) {
   return $output;
 }
 
-/**
- * Menu callback; displays the administration page.
- */
-function api_page_admin() {
-  $output = '';
-
-  $output .= '<h3>'. t('Branches to index') .'</h3>';
-  $output .= drupal_get_form('api_page_admin_form');
-
-  $output .= '<h3>'. t('PHP Manual') .'</h3>';
-  $output .= drupal_get_form('api_php_manual_index_form');
-
-  $output .= '<h3>'. t('Refresh index') .'</h3>';
-  $output .= '<p>'. t('Parse all indexed code files again, even if they have not been modified.') .'</p>';
-  $output .= drupal_get_form('api_reindex_form');
-
-  return $output;
-}
-
-function api_page_admin_form() {
-  $form = array();
-  $radios = array();
-
-  $result = db_query('SELECT branch_name, title, directory FROM {api_branch}');
-  $form['branches'] = array(
-    '#tree' => TRUE,
-  );
-  while ($branch = db_fetch_object($result)) {
-    $form['branches'][$branch->branch_name] = array(
-      '#tree' => TRUE,
-      '#type' => 'fieldset',
-    );
-    $form['branches'][$branch->branch_name]['branch_name'] = array(
-      '#title' => t('Short name'),
-      '#type' => 'textfield',
-      '#description' => t('The name that will appear in URL paths.'),
-      '#default_value' => $branch->branch_name,
-    );
-    $form['branches'][$branch->branch_name]['title'] = array(
-      '#title' => t('Long name'),
-      '#type' => 'textfield',
-      '#description' => t('The name that will appear in menu items.'),
-      '#default_value' => $branch->title,
-    );
-    $form['branches'][$branch->branch_name]['directory'] = array(
-      '#title' => t('Directory name'),
-      '#type' => 'textfield',
-      '#default_value' => $branch->directory,
-      '#description' => t('The absolute path of the directory to index. Multiple paths may be given, separated by colons, e.g.: "/mysite/drupal:/mysite/developer". <em>Note that the module will index recursively from the path given.</em>'),
-    );
-
-    $radios[$branch->branch_name] = $branch->title;
-  }
-
-  $form['branches']['new'] = array('#tree' => TRUE, '#type' => 'fieldset');
-  $form['branches']['new']['branch_name'] = array(
-    '#title' => t('Short name'),
-    '#type' => 'textfield',
-  );
-  $form['branches']['new']['title'] = array(
-    '#title' => t('Long name'),
-    '#type' => 'textfield',
-  );
-  $form['branches']['new']['directory'] = array(
-    '#title' => t('Directory name'),
-    '#type' => 'textfield',
-    '#description' => t('The absolute path of the directory to index. Multiple paths may be given, separated by colons, e.g.: "/mysite/drupal:/mysite/developer".'),
-  );
-
-  global $base_url;
-  $first_key = '';
-  if ($radios) {
-    if (!variable_get('api_default_branch', FALSE)) {
-
-      $first_key = array_keys($radios);
-      list($first_key) = $first_key;
-      variable_set('api_default_branch', $first_key);
-    }
-
-    $form['default_branch'] = array(
-      '#type' => 'radios',
-      '#title' => t('Default branch'),
-      '#default_value' => variable_get('api_default_branch', $first_key),
-      '#description' => t('Allows searching at %baseurl/apis/<code>your+search+here</code>', array('%baseurl' => $base_url)),
-      '#options' => $radios,
-    );
-  }
-
-  $form['submit'] = array(
-    '#type' => 'submit',
-    '#value' => t('Save changes'),
-  );
-
-  return $form;
-}
-
-function api_page_admin_form_submit($form, &$form_state) {
-  foreach ($form_state['values']['branches'] as $branch_name => $branch) {
-    if ($branch_name == 'new') {
-      if ($branch['branch_name'] != '') {
-        db_query("INSERT INTO {api_branch} (branch_name, title, directory) VALUES ('%s', '%s', '%s')", $branch['branch_name'], $branch['title'], $branch['directory']);
-      }
-    }
-    else {
-      if ($branch['branch_name'] == '') {
-        db_query("DELETE FROM {api_branch} WHERE branch_name = '%s'", $branch_name);
-        $result = db_query("SELECT did FROM {api_documentation} WHERE branch_name = '%s'", $branch_name);
-        while ($object = db_fetch_object($result)) {
-          db_query('DELETE FROM {api_documentation} WHERE did = %d', $object->did);
-          db_query('DELETE FROM {api_file} WHERE did = %d', $object->did);
-          db_query('DELETE FROM {api_function} WHERE did = %d', $object->did);
-          db_query('DELETE FROM {api_reference_storage} WHERE from_did = %d OR to_did = %d', $object->did, $object->did);
-        }
-      }
-      else {
-        db_query("UPDATE {api_branch} SET branch_name = '%s', title = '%s', directory = '%s' WHERE branch_name = '%s'", $branch['branch_name'], $branch['title'], $branch['directory'], $branch_name);
-        if ($branch['branch_name'] != $branch_name) {
-          db_query("UPDATE {api_documentation} SET branch_name = '%s' WHERE branch_name = '%s'", $branch['branch_name'], $branch_name);
-          $result = db_query("SELECT did FROM {api_documentation} WHERE branch_name = '%s'", $branch['branch_name']);
-          while ($object = db_fetch_object($result)) {
-            db_query('UPDATE {api_file} SET modified = 52 WHERE did = %d', $object->did);
-          }
-        }
-      }
-    }
-  }
-
-  //save the variable for default branch
-  if (!empty($form_state['values']['default_branch'])) {
-    variable_set('api_default_branch', $form_state['values']['default_branch']);
-  }
-
-  // We may have menu changes, so clear the menu cache for all users.
-  cache_clear_all('*', 'cache_menu', TRUE);
-
-  drupal_set_message(t('Changes saved.'));
-}
-
-function api_php_manual_index_form() {
-  $form = array();
-  $form['api_php_funcsummary'] = array(
-    '#type' => 'textfield',
-    '#default_value' => variable_get('api_php_funcsummary', 'http://cvs.php.net/viewcvs.cgi/phpdoc/funcsummary.txt?&view=markup'),
-    '#description' => t('The URL of the PHP function summary document.'),
-  );
-  $form['api_php_funcpath'] = array(
-    '#type' => 'textfield',
-    '#default_value' => variable_get('api_php_funcpath', 'http://php.net/!function'),
-    '#description' => t('The URL format used to build the link to php functions.  Use the variable <em>!function</em> in place of the function name.'),
-  );
-  $form['submit'] = array(
-    '#type' => 'submit',
-    '#value' => t('Index PHP manual pages'),
-  );
-  return $form;
-}
-
-function api_php_manual_index_form_submit($form, &$form_state) {
-  include_once(drupal_get_path('module', 'api') .'/parser.inc');
-  variable_set('api_php_funcsummary', $form_state['values']['api_php_funcsummary']);
-  variable_set('api_php_funcpath', $form_state['values']['api_php_funcpath']);
-  db_query("DELETE FROM {api_documentation} WHERE branch_name = 'php'");
-  api_parse_php_manual($form_state['values']['api_php_funcsummary']);
-  drupal_set_message(t('Manual pages scanned.'));
-}
-
-function api_reindex_form() {
-  $form = array();
-
-  $form['submit'] = array(
-    '#type' => 'submit',
-    '#value' => t('Reindex'),
-  );
-
-  return $form;
-}
-
-function api_reindex_form_submit($form, &$form_state) {
-  db_query("UPDATE {api_file} SET modified = 52");
-  drupal_set_message(t('All files have been tagged for reindexing. The index will be rebuilt during the next few runs of !cron.', array('!cron' => l('cron.php', 'admin/reports/status/run-cron'))));
-}
-
-/**
- * Implementation of hook_cron().
- */
 function api_cron() {
   include_once './'. drupal_get_path('module', 'api') .'/parser.inc';
   api_update_all_branches();

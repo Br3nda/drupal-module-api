@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.33 2008/08/15 08:01:10 drumm Exp $
+// $Id: parser.inc,v 1.34 2008/08/26 05:41:28 drumm Exp $
 
 /**
  * @file
@@ -818,7 +818,10 @@ function api_update_branch($branch) {
  * Find all the files in the directories specified for a branch.
  */
 function api_scan_directories($directories) {
-  $directory_array = explode(':', $directories);
+  $directory_array = explode("\n", $directories);
+  foreach ($directory_array as $key => $directory) {
+    $directory_array[$key] = trim($directory);
+  }
 
   if (count($directory_array) > 1) {
     $directories_components = array();

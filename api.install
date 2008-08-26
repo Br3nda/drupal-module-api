@@ -1,5 +1,5 @@
 <?php
-// $Id: api.install,v 1.7 2008/05/19 07:20:48 drumm Exp $
+// $Id: api.install,v 1.8 2008/08/26 05:41:28 drumm Exp $
 
 function api_schema() {
   $schema['api_branch'] = array(
@@ -184,6 +184,20 @@ function api_update_8() {
     array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
     array('primary key' => array('did'))
   );
+
+  return $return;
+}
+
+/**
+ * Change the branch directories delimiter from : to \n.
+ */
+function api_update_9() {
+  $return = array();
+
+  $result = db_query("SELECT branch_name, directory FROM {api_branch} WHERE directory LIKE '%:%'");
+  while ($branch = db_fetch_object($result)) {
+    db_query("UPDATE {api_branch} SET directory = '%s' WHERE branch_name = '%s'", strtr($branch->directory, ':', "\n"), $branch->branch_name);
+  }
 
   return $return;
 }
