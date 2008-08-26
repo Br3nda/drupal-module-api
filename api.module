@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.63 2008/08/26 06:03:59 drumm Exp $
+// $Id: api.module,v 1.64 2008/08/26 16:35:26 drumm Exp $
 
 /**
  * @file
@@ -1077,13 +1077,16 @@ function api_link_code($code, $branch_name) {
  * identifiers which are linked frequently change.
  */
 function api_link_documentation($documentation, $branch_name) {
-  return _api_link_documentation($documentation, $branch_name, array('tags', 'function', 'file'));
+  return _api_link_documentation($documentation, $branch_name, array('tags', 'link', 'function', 'file'));
 }
 
 function _api_link_documentation($documentation, $branch_name, $stages = array()) {
   $patterns = array(
     // Find HTML tags, which will not be filtered.
     'tags' => '/(<[^>]+?>)/',
+
+    // Find @link
+    'link' => '/@link\s+(.*)\s+@endlink/',
 
     // Find function names, which are preceded by white space and followed by
     // '('.
@@ -1105,6 +1108,10 @@ function _api_link_documentation($documentation, $branch_name, $stages = array()
   switch ($stage) {
     case 'tags':
       $callback_match = NULL;
+      break;
+
+    case 'link':
+      $callback_match = 'api_link_link';
       break;
 
     case 'function':
@@ -1179,7 +1186,7 @@ function api_split($pattern, $subject, $callback_match = NULL, $callback_match_a
 /**
  * Link an object name to its documentation.
  */
-function api_link_name($name, $branch_name, $prepend = '', $append = '') {
+function api_link_name($name, $branch_name, $prepend = '', $append = '', $text = NULL) {
   static $local_objects, $php_functions;
 
   if (is_null($local_objects)) {
@@ -1192,6 +1199,9 @@ function api_link_name($name, $branch_name, $prepend = '', $append = '') {
     );
     while ($object = db_fetch_object($result)) {
       $local_objects[$object->object_type][$object->title] = $object;
+      if ($object->object_type == 'file') {
+        $local_objects[$object->object_type][basename($object->object_name)] = $object;
+      }
     }
   }
 
@@ -1203,23 +1213,33 @@ function api_link_name($name, $branch_name, $prepend = '', $append = '') {
     }
   }
 
+  if (is_null($text)) {
+    $text = $name;
+  }
+
   if (array_key_exists($name, $local_objects['function'])) {
-    return $prepend . l($name, 'api/function/'. $local_objects['function'][$name]->object_name .'/'. $branch_name, array('attributes' => array('title' => $local_objects['function'][$name]->summary, 'class' => 'local'))) . $append;
+    return $prepend . l($text, 'api/function/'. $local_objects['function'][$name]->object_name .'/'. $branch_name, array('attributes' => array('title' => $local_objects['function'][$name]->summary, 'class' => 'local'))) . $append;
   }
   elseif (array_key_exists($name, $local_objects['file'])) {
-    return l($name, 'api/file/'. $local_objects['file'][$name]->object_name .'/'. $branch_name, array('attributes' => array('title' => $local_objects['file'][$name]->summary, 'class' => 'local')));
+    return l($text, 'api/file/'. $local_objects['file'][$name]->object_name .'/'. $branch_name, array('attributes' => array('title' => $local_objects['file'][$name]->summary, 'class' => 'local')));
   }
   elseif (array_key_exists($name, $local_objects['constant'])) {
-    return l($name, 'api/constant/'. $local_objects['constant'][$name]->object_name .'/'. $branch_name, array('attributes' => array('title' => $local_objects['constant'][$name]->summary, 'class' => 'local')));
+    return l($text, 'api/constant/'. $local_objects['constant'][$name]->object_name .'/'. $branch_name, array('attributes' => array('title' => $local_objects['constant'][$name]->summary, 'class' => 'local')));
   }
   elseif (array_key_exists($name, $local_objects['global'])) {
-    return l($name, 'api/global/'. $local_objects['global'][$name]->object_name .'/'. $branch_name, array('attributes' => array('title' => $local_objects['global'][$name]->summary, 'class' => 'local')));
+    return l($text, 'api/global/'. $local_objects['global'][$name]->object_name .'/'. $branch_name, array('attributes' => array('title' => $local_objects['global'][$name]->summary, 'class' => 'local')));
   }
   elseif (array_key_exists($name, $php_functions)) {
     $link = strtr(variable_get('api_php_funcpath', 'http://php.net/!function'), array('!function' => $name));
-    return '<a href="'. $link .'" title="'. $php_functions[$name] .'" class="php-manual">'. $name .'</a>';
+    return l($text, $link, array('attributes' => array('title' => $php_functions[$name], 'class' => 'php-manual')));
   }
   else {
-    return $prepend . $name . $append;
+    return $prepend . $text . $append;
   }
+}
+
+function api_link_link($name, $branch_name, $prepend = '', $append = '') {
+  $words = preg_split('/\s+/', $name);
+  $name = array_shift($words);
+  return api_link_name($name, $branch_name, $prepend, $append, implode(' ', $words));
 }

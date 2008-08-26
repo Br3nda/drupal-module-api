@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.37 2008/08/26 10:16:12 drumm Exp $
+// $Id: parser.inc,v 1.38 2008/08/26 16:35:26 drumm Exp $
 
 /**
  * @file
@@ -479,10 +479,8 @@ function api_format_documentation($documentation, $branch_name) {
 
   $documentation = check_plain($documentation);
 
-  // Process the @link tag.
+  // Process @link to static URLs.
   $documentation = preg_replace('!@link ((http://|https://|ftp://|mailto:|smb://|afp://|file://|gopher://|news://|ssl://|sslv2://|sslv3://|tls://|tcp://|udp://)([a-zA-Z0-9@:%_+*~#?&=.,/;-]*[a-zA-Z0-9@:%_+*~#&=/;-])) (.*?) @endlink!', '<a href="$1">$4</a>', $documentation);
-  $documentation = preg_replace('!@link '. API_RE_FILENAME .' (.*?) @endlink!', str_replace('%24', '$', l('$2', 'api/file/$1/'. $branch_name)), $documentation);
-  $documentation = preg_replace('!@link ([a-zA-Z0-9_]+)\(\) (.*?) @endlink!', str_replace('%24', '$', l('$2', 'api/function/$1/'. $branch_name)), $documentation);
   $documentation = preg_replace('!@link /([a-zA-Z0-9_/-]+) (.*?) @endlink!', str_replace('%24', '$', l('$2', '$1')), $documentation);
   $documentation = preg_replace('!@link ([a-zA-Z0-9_]+) (.*?) @endlink!', str_replace('%24', '$', l('$2', 'api/group/$1/'. $branch_name)), $documentation);
 
