@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.34 2008/08/26 05:41:28 drumm Exp $
+// $Id: parser.inc,v 1.35 2008/08/26 06:20:18 drumm Exp $
 
 /**
  * @file
@@ -770,6 +770,7 @@ function api_update_branch($branch) {
     'install' => 'api_parse_php_file',
     'engine' => 'api_parse_php_file',
     'theme' => 'api_parse_php_file',
+    'profile' => 'api_parse_php_file',
 
     'txt' => 'api_parse_text_file',
 
