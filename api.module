@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.64 2008/08/26 16:35:26 drumm Exp $
+// $Id: api.module,v 1.65 2008/08/27 13:21:29 drumm Exp $
 
 /**
  * @file
@@ -23,6 +23,11 @@
  * Regular expression for matching file names.
  */
 define('API_RE_FILENAME', '([a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)+)');
+
+/**
+ * Regular expression for starting inline @tags.
+ */
+define('API_RE_TAG_START', '(?<!\\\)@');
 
 /**
  * The maximum number of path elements to look for in file names.
@@ -1086,7 +1091,7 @@ function _api_link_documentation($documentation, $branch_name, $stages = array()
     'tags' => '/(<[^>]+?>)/',
 
     // Find @link
-    'link' => '/@link\s+(.*)\s+@endlink/',
+    'link' => '/'. API_RE_TAG_START .'link\s+(.*)\s+@endlink/',
 
     // Find function names, which are preceded by white space and followed by
     // '('.
