@@ -1,4 +1,4 @@
-/* $Id: api.css,v 1.6 2008/05/19 07:09:38 drumm Exp $ */
+/* $Id: api.css,v 1.7 2008/12/15 02:11:19 drumm Exp $ */
 
 .php {
   font-family: monospace;
@@ -39,6 +39,45 @@
   color: #060;
 }
 
+/* Function signature */
+
+#api-function-signature {
+  color: #808080;
+  font-size: 1.2em;
+}
+
+#api-function-signature dt {
+  font-weight: normal;
+  float: left;
+  text-align: right;
+}
+
+#api-function-signature strong {
+  color: #000;
+  font-weight: normal;
+}
+
+#api-function-signature dt strong {
+  font-weight: bold;
+}
+
+#api-function-signature del {
+  text-decoration: none;
+  color: #dd8080;
+}
+
+#api-function-signature strong del {
+  color: #f00;
+}
+
+#api-function-signature ins {
+  text-decoration: none;
+  color: #80cc80;
+}
+
+#api-function-signature strong ins {
+  color: #080;
+}
 
 /* Search block- make the text field the correct width */
 

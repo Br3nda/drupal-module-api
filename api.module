@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.65 2008/08/27 13:21:29 drumm Exp $
+// $Id: api.module,v 1.66 2008/12/15 02:11:19 drumm Exp $
 
 /**
  * @file
@@ -40,7 +40,7 @@ define('API_MAX_FILE_ELEMENTS', 5);
 function api_help($path, $arg) {
   switch ($path) {
     case 'admin/help#api':
-      $output = t('
+      return t('
 <p>
 This is an implementation of a subset of the Doxygen documentation generator specification, tuned to produce output that best benefits the Drupal code base.
 </p>
@@ -83,7 +83,6 @@ Indexing of PHP functions is also supported. If the site has internet access, th
 The module indexes code branches during cron runs, so make sure the site has cron functionality set up properly.
 </p>
 ', array('!api_site' => l('http://api.drupal.org', 'http://api.drupal.org', array('absolute' => TRUE)), '!api_settings_page' => l(t('API settings page'), 'admin/settings/api')));
-      return $output;
 
     case 'admin/settings/api/refresh':
       return t('Parse all indexed code files again, even if they have not been modified.');
@@ -476,37 +475,33 @@ function api_filename_load($first, $map, $index, $branch_name = NULL) {
  * Load an object from its name, type and branch.
  */
 function api_object_load($object_name, $object_type, $branch_name = NULL) {
+  static $cache;
+
   if (is_null($branch_name)) {
     $branch_name = variable_get('api_default_branch', 'HEAD');
   }
-  // Prepare the query
-  $query['tables'] = array(
-    '{api_documentation} ad'
-  );
-  $query['fields'] = array(
-    'ad.*'
-  );
-  $query['where'] = "WHERE ad.object_name = '%s' AND ad.object_type = '%s' AND ad.branch_name = '%s'";
-  $query['arguments'] = array(
-    $object_name, $object_type, $branch_name
-  );
 
-  if ($object_type == 'function') {
-    $query['tables'][] = 'LEFT JOIN {api_function} af ON (af.did = ad.did)';
-    $query['fields'][] = 'af.*';
+  $key = $object_name .':'. $object_type .':'. $branch_name;
+  if (!isset($cache[$key])) {
+    // Prepare the query
+    $tables = array('{api_documentation} ad');
+    $fields = array('ad.*');
+    $where = "WHERE ad.object_name = '%s' AND ad.object_type = '%s' AND ad.branch_name = '%s'";
+    $arguments = array($object_name, $object_type, $branch_name);
+
+    if ($object_type == 'function') {
+      $tables[] = 'LEFT JOIN {api_function} af ON (af.did = ad.did)';
+      $fields[] = 'af.*';
+    }
+    else if ($object_type == 'file') {
+      $tables[] = 'LEFT JOIN {api_file} af ON (af.did = ad.did)';
+      $fields[] = 'af.*';
+    }
+    // Now build it
+    $cache[$key] = db_fetch_object(db_query('SELECT '. implode(', ', $fields) .' FROM '. implode(' ', $tables) .' '. $where, $arguments));
   }
-  else if ($object_type == 'file') {
-    $query['tables'][] = 'LEFT JOIN {api_file} af ON (af.did = ad.did)';
-    $query['fields'][] = 'af.*';
-  }
-  // Now build it
-  $api_object = db_fetch_object(db_query("SELECT ". implode(', ', $query['fields']) ." FROM ". implode(" ", $query['tables']) ." ". $query['where'], $query['arguments']));
-  if ($api_object) {
-    return $api_object;
-  }
-  else {
-    return FALSE;
-  }
+
+  return $cache[$key];
 }
 
 /**
@@ -520,6 +515,65 @@ function api_theme() {
   return array(
     'api_branch_table' => array(
       'arguments' => array('element' => NULL),
+    ),
+    'api_function_page' => array(
+      'arguments' => array(
+        'function' => NULL,
+        'signatures' => NULL,
+        'branch_length' => NULL,
+        'documentation' => NULL,
+        'parameters' => NULL,
+        'return' => NULL,
+        'related_topics' => NULL,
+        'code' => NULL,
+      ),
+      'template' => 'templates/api-function-page',
+    ),
+    'api_function_references_page' => array(
+      'arguments' => array(
+        'function' => NULL,
+        'related_topics' => NULL,
+        'call' => NULL,
+        'called' => NULL,
+      ),
+      'template' => 'templates/api-function-reference-page',
+    ),
+    'api_constant_page' => array(
+      'arguments' => array(
+        'constant' => NULL,
+        'documentation' => NULL,
+        'code' => NULL,
+        'related_topics' => NULL,
+      ),
+      'template' => 'templates/api-constant-page',
+    ),
+    'api_global_page' => array(
+      'arguments' => array(
+        'global' => NULL,
+        'documentation' => NULL,
+        'code' => NULL,
+        'related_topics' => NULL,
+      ),
+      'template' => 'templates/api-global-page',
+    ),
+    'api_file_page' => array(
+      'arguments' => array(
+        'file' => NULL,
+        'documentation' => NULL,
+        'constants' => NULL,
+        'globals' => NULL,
+        'functions' => NULL,
+      ),
+      'template' => 'templates/api-file-page'
+    ),
+    'api_group_page' => array(
+      'arguments' => array(
+        'documentation' => NULL,
+        'constants' => NULL,
+        'globals' => NULL,
+        'functions' => NULL,
+      ),
+      'template' => 'templates/api-group-page'
     ),
   );
 }
@@ -685,8 +739,8 @@ function api_search_listing($branch_name) {
       break;
 
     default:
-      $result = pager_query("SELECT * FROM {api_documentation} WHERE branch_name = '%s' AND object_name LIKE '%%%s%%'". tablesort_sql(_api_listing_headers()), 50, 0, NULL, $branch_name, $search_text);
-      return api_render_listing($result);
+      $result = pager_query("SELECT * FROM {api_documentation} WHERE branch_name = '%s' AND object_name LIKE '%%%s%%' ORDER BY title", 50, 0, NULL, $branch_name, $search_text);
+      return api_render_listing($result) . theme('pager', NULL, 50, 0);
   }
 }
 
@@ -719,36 +773,30 @@ function api_page_branch($branch_name) {
  * Menu callback; displays an object listing.
  */
 function api_page_listing($branch_name, $object_type) {
-  $result = pager_query("SELECT * FROM {api_documentation} WHERE branch_name = '%s' AND object_type = '%s'". tablesort_sql(_api_listing_headers()), 50, 0, NULL, $branch_name, $object_type);
-  return api_render_listing($result);
-}
-
-function _api_listing_headers() {
-  $headers = array();
-  $headers[] = array('data' => t('Name'), 'field' => 'title');
-  $headers[] = array('data' => t('Location'), 'field' => 'file_name');
-  $headers[] = t('Description');
-  return $headers;
+  $result = pager_query("SELECT * FROM {api_documentation} WHERE branch_name = '%s' AND object_type = '%s' ORDER BY title", 50, 0, NULL, $branch_name, $object_type);
+  return api_render_listing($result) . theme('pager', NULL, 50, 0);
 }
 
 /**
  * Render a table with an overview of documentation objects.
  */
 function api_render_listing($result) {
-  $headers = _api_listing_headers();
+  $headers = array(
+    t('Name'),
+    t('Location'),
+    t('Description'),
+  );
 
   $rows = array();
   while ($object = db_fetch_object($result)) {
-    $row = array();
-    $row[] = l($object->title, 'api/'. $object->object_type .'/'. $object->object_name .'/'. $object->branch_name);
-    $row[] = l(str_replace('/', '/ ', $object->file_name), 'api/file/'. $object->file_name .'/'. $object->branch_name);
-    $row[] = api_link_documentation($object->summary, $object->branch_name);
-    $rows[] = $row;
+    $rows[] = array(
+      l($object->title, 'api/'. $object->object_type .'/'. $object->object_name .'/'. $object->branch_name),
+      '<small>'. api_file_link($object) .'</small>',
+      api_link_documentation($object->summary, $object->branch_name),
+    );
   }
 
-  $output = theme('table', $headers, $rows);
-  $output .= theme('pager', NULL, 50, 0);
-  return $output;
+  return theme('table', $headers, $rows);
 }
 
 /**
@@ -767,48 +815,72 @@ function api_page_function_dump($branch_name) {
  */
 function api_page_function($function) {
   drupal_add_css(drupal_get_path('module', 'api') .'/api.css');
-
-  $output = '';
-
-  $output .= '<h3>'. t('Definition') .'</h3>';
-  $output .= '<p><small>'. $function->signature .'</small><br />';
-  $output .= l($function->file_name, 'api/file/'. $function->file_name .'/'. $function->branch_name) .', '. t('line') .' '. $function->start_line .'</p>';
-
-  if (!empty($function->documentation)) {
-    $output .= '<h3>'. t('Description') .'</h3>';
-    $output .= api_link_documentation($function->documentation, $function->branch_name);
-  }
-
-  if (!empty($function->parameters)) {
-    $output .= '<h3>'. t('Parameters') .'</h3>';
-    $output .= api_link_documentation($function->parameters, $function->branch_name);
-  }
-
-  if (!empty($function->return)) {
-    $output .= '<h3>'. t('Return value') .'</h3>';
-    $output .= api_link_documentation($function->return, $function->branch_name);
-  }
-
-  $headers = array(array('data' => t('Name'), 'field' => 'd.title'), t('Description'));
-  $rows = array();
-  $result = db_query("SELECT d.object_name, d.title, d.summary FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'group' WHERE r.from_did = %d". tablesort_sql($headers), $function->did);
-  while ($group = db_fetch_object($result)) {
-    $rows[] = array(
-      l($group->title, 'api/group/'. $group->object_name .'/'. $function->branch_name),
-      api_link_documentation($group->summary, $function->branch_name));
-  }
-  if (count($rows) > 0) {
-    $output .= '<h3>'. t('Related topics') .'</h3>';
-    $output .= theme('table', $headers, $rows);
-  }
-
-  if (!empty($function->code)) {
-    $output .= '<h3>'. t('Code') .'</h3>';
-    $output .= api_link_code($function->code, $function->branch_name);
-  }
-
   drupal_set_title($function->title);
-  return $output;
+
+  $signatures = array();
+  $branch_length = 0;
+  $result = db_query("SELECT d.branch_name, f.signature FROM {api_documentation} d INNER JOIN {api_function} f ON f.did = d.did WHERE d.object_type = 'function' AND d.title = '%s'", $function->title);
+  while ($signature = db_fetch_object($result)) {
+    $tokens = token_get_all('<?php '. $signature->signature);
+    $name = $tokens[1][1];
+    $arguments[$signature->branch_name] = array();
+    $other[$signature->branch_name] = array();
+    $start = TRUE;
+    $d = 0;
+    foreach ($tokens as $token) {
+      $d += in_array($token, array('(', '{', '[')) - in_array($token, array(')', '}', ']'));
+      if ($d == 1 && $start && is_array($token) && $token[0] != T_WHITESPACE) {
+        $arguments[$signature->branch_name][] = $token[1];
+        $other[$signature->branch_name][] = '';
+        $start = FALSE;
+      }
+      elseif ($d == 1 && $token == ',') {
+        $start = TRUE;
+        $other[$signature->branch_name][count($other[$signature->branch_name]) - 1] .= ',';
+      }
+      elseif ($d >= 1 && is_array($token)) {
+        $other[$signature->branch_name][count($other[$signature->branch_name]) - 1] .= $token[1];
+      }
+      elseif ($d >= 1 && !$start) {
+        $other[$signature->branch_name][count($other[$signature->branch_name]) - 1] .= $token;
+      }
+    }
+    $branch_length = max($branch_length, strlen($signature->branch_name));
+  }
+  $branches = array_keys($arguments);
+  usort($branches, 'version_compare');
+  foreach ($branches as $n => $branch_name) {
+    $new = array();
+    if (isset($branches[$n - 1])) {
+      $new = array_diff($arguments[$branch_name], $arguments[$branches[$n - 1]]);
+    }
+    $old = array();
+    if (isset($branches[$n + 1])) {
+      $old = array_diff($arguments[$branch_name], $arguments[$branches[$n + 1]]);
+    }
+    $signatures[$branch_name] = $name .'(';
+    foreach ($arguments[$branch_name] as $key => $argument) {
+      if (in_array($argument, $old)) {
+        $signatures[$branch_name] .= '<del>'. $argument .'</del>';
+      }
+      elseif (in_array($argument, $new)) {
+        $signatures[$branch_name] .= '<ins>'. $argument .'</ins>';
+      }
+      else {
+        $signatures[$branch_name] .= $argument;
+      }
+      $signatures[$branch_name] .= $other[$branch_name][$key];
+    }
+    $signatures[$branch_name] .= ')';
+  }
+
+  $documentation = api_link_documentation($function->documentation, $function->branch_name);
+  $parameters = api_link_documentation($function->parameters, $function->branch_name);
+  $return = api_link_documentation($function->return, $function->branch_name);
+  $code = api_link_code($function->code, $function->branch_name);
+  $related_topics = api_related_topics($function->did, $function->branch_name);
+
+  return theme('api_function_page', $function, $signatures, $branch_length, $documentation, $parameters, $return, $related_topics, $code);
 }
 
 /**
@@ -816,52 +888,13 @@ function api_page_function($function) {
  */
 function api_page_function_references($function) {
   drupal_add_css(drupal_get_path('module', 'api') .'/api.css');
-
-  $output = '';
-
-  $headers = array(array('data' => t('Name'), 'field' => 'd.title'), t('Description'));
-  $rows = array();
-  $result = db_query("SELECT d.object_name, d.title, d.summary FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'group' WHERE r.from_did = %d". tablesort_sql($headers), $function->did);
-  while ($group = db_fetch_object($result)) {
-    $rows[] = array(
-      l($group->title, 'api/group/'. $group->object_name .'/'. $function->branch_name),
-      api_link_documentation($group->summary, $function->branch_name));
-  }
-  if (count($rows) > 0) {
-    $output .= '<h3>'. t('Related topics') .'</h3>';
-    $output .= theme('table', $headers, $rows);
-  }
-
-  $headers = array(array('data' => t('Name'), 'field' => 'd.title'), array('data' => t('Location'), 'field' => 'd.file_name'), t('Description'));
-  $rows = array();
-  $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.from_did = d.did AND d.object_type = 'function' WHERE r.to_did = %d". tablesort_sql($headers), $function->did);
-  while ($reference = db_fetch_object($result)) {
-    $rows[] = array(
-      l($reference->title, 'api/function/'. $reference->object_name .'/'. $function->branch_name),
-      l($reference->file_name, 'api/file/'. $reference->file_name .'/'. $function->branch_name),
-      api_link_documentation($reference->summary, $function->branch_name));
-  }
-  if (count($rows) > 0) {
-    $output .= '<h3>'. t('Functions that call %name()', array('%name' => $function->title)) .'</h3>';
-    $output .= theme('table', $headers, $rows);
-  }
-
-  $headers = array(array('data' => t('Name'), 'field' => 'd.title'), array('data' => t('Location'), 'field' => 'd.file_name'), t('Description'));
-  $rows = array();
-  $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'function' WHERE r.from_did = %d". tablesort_sql($headers), $function->did);
-  while ($reference = db_fetch_object($result)) {
-    $rows[] = array(
-      l($reference->title, 'api/function/'. $reference->object_name .'/'. $function->branch_name),
-      l($reference->file_name, 'api/file/'. $reference->file_name .'/'. $function->branch_name),
-      api_link_documentation($reference->summary, $function->branch_name));
-  }
-  if (count($rows) > 0) {
-    $output .= '<h3>'. t('Functions called by %name()', array('%name' => $function->title)) .'</h3>';
-    $output .= theme('table', $headers, $rows);
-  }
-
   drupal_set_title($function->title);
-  return $output;
+
+  $related_topics = api_related_topics($function->did, $function->branch_name);
+  $call = api_render_listing(db_query("SELECT d.object_name, d.title, d.summary, d.file_name, d.branch_name, d.object_type FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.from_did = d.did AND d.object_type = 'function' WHERE r.to_did = %d ORDER BY d.title", $function->did));
+  $called = api_render_listing(db_query("SELECT d.object_name, d.title, d.summary, d.file_name, d.branch_name, d.object_type FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'function' WHERE r.from_did = %d ORDER BY d.title", $function->did));
+
+  return theme('api_function_references_page', $function->title, $related_topics, $call, $called);
 }
 
 /**
@@ -869,35 +902,13 @@ function api_page_function_references($function) {
  */
 function api_page_constant($constant) {
   drupal_add_css(drupal_get_path('module', 'api') .'/api.css');
-
-  $output = '<h3>'. t('Definition') .'</h3>';
-  $output .= '<p>'. l($constant->file_name, 'api/file/'. $constant->file_name .'/'. $constant->branch_name) .'</p>';
-
-  if (!empty($constant->documentation)) {
-    $output .= '<h3>'. t('Description') .'</h3>';
-    $output .= api_link_documentation($constant->documentation, $constant->branch_name);
-  }
-
-  $headers = array(array('data' => t('Name'), 'field' => 'd.title'), t('Description'));
-  $rows = array();
-  $result = db_query("SELECT d.object_name, d.title, d.summary FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'group' WHERE r.from_did = %d". tablesort_sql($headers), $constant->did);
-  while ($group = db_fetch_object($result)) {
-    $rows[] = array(
-      l($group->title, 'api/group/'. $group->object_name .'/'. $constant->branch_name),
-      api_link_documentation($group->summary, $constant->branch_name));
-  }
-  if (count($rows) > 0) {
-    $output .= '<h3>'. t('Related topics') .'</h3>';
-    $output .= theme('table', $headers, $rows);
-  }
-
-  if (!empty($constant->code)) {
-    $output .= '<h3>'. t('Code') .'</h3>';
-    $output .= api_link_code($constant->code, $constant->branch_name);
-  }
-
   drupal_set_title($constant->title);
-  return $output;
+
+  $documentation = api_link_documentation($constant->documentation, $constant->branch_name);
+  $code = api_link_code($constant->code, $constant->branch_name);
+  $related_topics = api_related_topics($constant->did, $constant->branch_name);
+
+  return theme('api_constant_page', $constant, $documentation, $code, $related_topics);
 }
 
 /**
@@ -905,35 +916,13 @@ function api_page_constant($constant) {
  */
 function api_page_global($global) {
   drupal_add_css(drupal_get_path('module', 'api') .'/api.css');
-
-  $output = '<h3>'. t('Definition') .'</h3>';
-  $output .= '<p>'. l($global->file_name, 'api/file/'. $global->file_name .'/'. $global->branch_name) .'</p>';
-
-  if (!empty($global->documentation)) {
-    $output .= '<h3>'. t('Description') .'</h3>';
-    $output .= api_link_documentation($global->documentation, $global->branch_name);
-  }
-
-  $headers = array(array('data' => t('Name'), 'field' => 'd.title'), t('Description'));
-  $rows = array();
-  $result = db_query("SELECT d.object_name, d.title, d.summary FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'group' WHERE r.from_did = %d". tablesort_sql($headers), $global->did);
-  while ($group = db_fetch_object($result)) {
-    $rows[] = array(
-      l($group->title, 'api/group/'. $group->object_name .'/'. $global->branch_name),
-      api_link_documentation($group->summary, $global->branch_name));
-  }
-  if (count($rows) > 0) {
-    $output .= '<h3>'. t('Related topics') .'</h3>';
-    $output .= theme('table', $headers, $rows);
-  }
-
-  if (!empty($global->code)) {
-    $output .= '<h3>'. t('Code') .'</h3>';
-    $output .= api_link_code($global->code, $global->branch_name);
-  }
-
   drupal_set_title($global->title);
-  return $output;
+
+  $documentation = api_link_documentation($global->documentation, $global->branch_name);
+  $related_topics = api_related_topics($global->did, $global->branch_name);
+  $code = api_link_code($global->code, $global->branch_name);
+
+  return theme('api_global_page', $global, $documentation, $code, $related_topics);
 }
 
 /**
@@ -941,60 +930,39 @@ function api_page_global($global) {
  */
 function api_page_file($file) {
   drupal_add_css(drupal_get_path('module', 'api') .'/api.css');
-
-  $output = '';
-
-  if (!empty($file->version)) {
-    $output .= '<h3>'. t('Version') .'</h3>';
-    $output .= '<p>'. $file->version .'</p>';
-  }
-
-  if (!empty($file->documentation)) {
-    $output .= '<h3>'. t('Description') .'</h3>';
-    $output .= api_link_documentation($file->documentation, $file->branch_name);
-  }
-
-  $headers = array(array('data' => t('Name'), 'field' => 'title'), t('Description'));
-  $rows = array();
-  $result = db_query("SELECT title, object_name, summary FROM {api_documentation} WHERE file_name = '%s' AND branch_name = '%s' AND object_type = 'constant'". tablesort_sql($headers), $file->object_name, $file->branch_name);
-  while ($object = db_fetch_object($result)) {
-    $rows[] = array(
-      l($object->title, 'api/constant/'. $object->object_name .'/'. $file->branch_name),
-      api_link_documentation($object->summary, $file->branch_name));
-  }
-  if (count($rows) > 0) {
-    $output .= '<h3>'. t('Constants') .'</h3>';
-    $output .= theme('table', $headers, $rows);
-  }
-
-  $headers = array(array('data' => t('Name'), 'field' => 'title'), t('Description'));
-  $rows = array();
-  $result = db_query("SELECT title, object_name, summary FROM {api_documentation} WHERE file_name = '%s' AND branch_name = '%s' AND object_type = 'global'". tablesort_sql($headers), $file->object_name, $file->branch_name);
-  while ($object = db_fetch_object($result)) {
-    $rows[] = array(
-      l($object->title, 'api/global/'. $object->object_name .'/'. $file->branch_name),
-      api_link_documentation($object->summary, $file->branch_name));
-  }
-  if (count($rows) > 0) {
-    $output .= '<h3>'. t('Globals') .'</h3>';
-    $output .= theme('table', $headers, $rows);
-  }
-
-  $headers = array(array('data' => t('Name'), 'field' => 'title'), t('Description'));
-  $rows = array();
-  $result = db_query("SELECT title, object_name, summary FROM {api_documentation} WHERE file_name = '%s' AND branch_name = '%s' AND object_type = 'function'". tablesort_sql($headers), $file->object_name, $file->branch_name);
-  while ($object = db_fetch_object($result)) {
-    $rows[] = array(
-      l($object->title, 'api/function/'. $object->object_name .'/'. $file->branch_name),
-      api_link_documentation($object->summary, $file->branch_name));
-  }
-  if (count($rows) > 0) {
-    $output .= '<h3>'. t('Functions') .'</h3>';
-    $output .= theme('table', $headers, $rows);
-  }
-
   drupal_set_title($file->title);
-  return $output;
+
+  $documentation = api_link_documentation($file->documentation, $file->branch_name);
+  $result = db_query("SELECT title, object_name, summary, object_type FROM {api_documentation} WHERE file_name = '%s' AND branch_name = '%s' AND object_type IN ('constant', 'global', 'function') ORDER BY title", $file->object_name, $file->branch_name);
+  $rows = array(
+    'constant' => array(),
+    'global' => array(),
+    'function' => array(),
+  );
+  while ($object = db_fetch_object($result)) {
+    $rows[$object->object_type][] = array(
+      l($object->title, 'api/'. $object->object_type .'/'. $object->object_name .'/'. $object->branch_name),
+      api_link_documentation($object->summary, $file->branch_name),
+    );
+  }
+  $header = array(
+    t('Name'),
+    t('Description'),
+  );
+  $constants = '';
+  if (count($rows['constant']) > 0) {
+    $constants = theme('table', $header, $rows['constant']);
+  }
+  $globals = '';
+  if (count($rows['global']) > 0) {
+    $globals = theme('table', $header, $rows['global']);
+  }
+  $functions = '';
+  if (count($rows['function']) > 0) {
+    $functions = theme('table', $header, $rows['function']);
+  }
+
+  return theme('api_file_page', $file, $documentation, $constants, $globals, $functions);
 }
 
 /**
@@ -1002,8 +970,8 @@ function api_page_file($file) {
  */
 function api_page_file_source($file) {
   drupal_add_css(drupal_get_path('module', 'api') .'/api.css');
-
   drupal_set_title($file->title);
+
   return api_link_code($file->code, $file->branch_name);
 }
 
@@ -1012,57 +980,65 @@ function api_page_file_source($file) {
  */
 function api_page_group($group) {
   drupal_add_css(drupal_get_path('module', 'api') .'/api.css');
-
-  $output = '';
-
-  if (!empty($group->documentation)) {
-    $output .= api_link_documentation($group->documentation, $group->branch_name);
-  }
-
-  $headers = array(array('data' => t('Name'), 'field' => 'd.title'), array('data' => t('Location'), 'field' => 'd.file_name'), t('Description'));
-  $rows = array();
-  $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.from_did = d.did AND d.object_type = 'constant' WHERE r.to_did = %d". tablesort_sql($headers), $group->did);
-  while ($object = db_fetch_object($result)) {
-    $rows[] = array(
-      l($object->title, 'api/constant/'. $object->object_name .'/'. $group->branch_name),
-      l($object->file_name, 'api/file/'. $object->file_name .'/'. $group->branch_name),
-      api_link_documentation($object->summary, $group->branch_name));
-  }
-  if (count($rows) > 0) {
-    $output .= '<h3>'. t('Constants') .'</h3>';
-    $output .= theme('table', $headers, $rows);
-  }
-
-  $headers = array(array('data' => t('Name'), 'field' => 'd.title'), array('data' => t('Location'), 'field' => 'd.file_name'), t('Description'));
-  $rows = array();
-  $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.from_did = d.did AND d.object_type = 'global' WHERE r.to_did = %d". tablesort_sql($headers), $group->did);
-  while ($object = db_fetch_object($result)) {
-    $rows[] = array(
-      l($object->title, 'api/global/'. $object->object_name .'/'. $group->branch_name),
-      l($object->file_name, 'api/file/'. $object->file_name .'/'. $group->branch_name),
-      api_link_documentation($object->summary, $group->branch_name));
-  }
-  if (count($rows) > 0) {
-    $output .= '<h3>'. t('Globals') .'</h3>';
-    $output .= theme('table', $headers, $rows);
-  }
-
-  $headers = array(array('data' => t('Name'), 'field' => 'd.title'), array('data' => t('Location'), 'field' => 'd.file_name'), t('Description'));
-  $rows = array();
-  $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.from_did = d.did AND d.object_type = 'function' WHERE r.to_did = %d". tablesort_sql($headers), $group->did);
-  while ($object = db_fetch_object($result)) {
-    $rows[] = array(
-      l($object->title, 'api/function/'. $object->object_name .'/'. $group->branch_name),
-      l($object->file_name, 'api/file/'. $object->file_name .'/'. $group->branch_name),
-      api_link_documentation($object->summary, $group->branch_name));
-  }
-  if (count($rows) > 0) {
-    $output .= '<h3>'. t('Functions') .'</h3>';
-    $output .= theme('table', $headers, $rows);
-  }
-
   drupal_set_title($group->title);
-  return $output;
+
+  $documentation = api_link_documentation($group->documentation, $group->branch_name);
+
+  $rows = array(
+    'constant' => array(),
+    'global' => array(),
+    'function' => array(),
+  );
+  $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name, d.object_type, d.branch_name FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.from_did = d.did AND d.object_type IN ('constant', 'global', 'function') WHERE r.to_did = %d ORDER BY d.object_name", $group->did);
+  while ($object = db_fetch_object($result)) {
+    $rows[$object->object_type][] = array(
+      l($object->title, 'api/'. $object->object_type .'/'. $object->object_name .'/'. $object->branch_name),
+      '<small>'. api_file_link($object) .'</small>',
+      api_link_documentation($object->summary, $object->branch_name),
+    );
+  }
+  $header = array(
+    t('Name'),
+    t('Location'),
+    t('Description'),
+  );
+  $constants = '';
+  if (count($rows['constant']) > 0) {
+    $constants = theme('table', $header, $rows['constant']);
+  }
+  $globals = '';
+  if (count($rows['global']) > 0) {
+    $globals = theme('table', $header, $rows['global']);
+  }
+  $functions = '';
+  if (count($rows['function']) > 0) {
+    $functions = theme('table', $header, $rows['function']);
+  }
+
+  return theme('api_group_page', $documentation, $constants, $globals, $functions);
+}
+
+function api_related_topics($did, $branch_name) {
+  $header = array(
+    t('Name'),
+    t('Description'),
+  );
+  $rows = array();
+  $result = db_query("SELECT d.object_name, d.title, d.summary FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'group' WHERE r.from_did = %d", $did);
+  while ($group = db_fetch_object($result)) {
+    $rows[] = array(
+      l($group->title, 'api/group/'. $group->object_name .'/'. $branch_name),
+      api_link_documentation($group->summary, $branch_name),
+    );
+  }
+  if (count($rows) > 0) {
+    return theme('table', $header, $rows);
+  }
+  return '';
+}
+
+function api_file_link($object) {
+  return dirname($object->file_name) .'/'. l(basename($object->file_name), 'api/file/'. $object->file_name .'/'. $object->branch_name);
 }
 
 function api_cron() {
@@ -1191,7 +1167,7 @@ function api_split($pattern, $subject, $callback_match = NULL, $callback_match_a
 /**
  * Link an object name to its documentation.
  */
-function api_link_name($name, $branch_name, $prepend = '', $append = '', $text = NULL) {
+function api_link_name($name, $branch_name, $prepend = '', $append = '', $text = NULL, $is_link = FALSE) {
   static $local_objects, $php_functions;
 
   if (is_null($local_objects)) {
@@ -1199,12 +1175,13 @@ function api_link_name($name, $branch_name, $prepend = '', $append = '', $text =
     $local_objects = array(
       'function' => array(),
       'file' => array(),
+      'group' => array(),
       'constant' => array(),
       'global' => array(),
     );
     while ($object = db_fetch_object($result)) {
       $local_objects[$object->object_type][$object->title] = $object;
-      if ($object->object_type == 'file') {
+      if ($object->object_type == 'file' || $object->object_type == 'group') {
         $local_objects[$object->object_type][basename($object->object_name)] = $object;
       }
     }
@@ -1222,7 +1199,10 @@ function api_link_name($name, $branch_name, $prepend = '', $append = '', $text =
     $text = $name;
   }
 
-  if (array_key_exists($name, $local_objects['function'])) {
+  if ($is_link && array_key_exists($name, $local_objects['group'])) {
+    return $prepend . l($text, 'api/group/'. $local_objects['group'][$name]->object_name .'/'. $branch_name) . $append;
+  }
+  elseif (array_key_exists($name, $local_objects['function'])) {
     return $prepend . l($text, 'api/function/'. $local_objects['function'][$name]->object_name .'/'. $branch_name, array('attributes' => array('title' => $local_objects['function'][$name]->summary, 'class' => 'local'))) . $append;
   }
   elseif (array_key_exists($name, $local_objects['file'])) {
@@ -1246,5 +1226,5 @@ function api_link_name($name, $branch_name, $prepend = '', $append = '', $text =
 function api_link_link($name, $branch_name, $prepend = '', $append = '') {
   $words = preg_split('/\s+/', $name);
   $name = array_shift($words);
-  return api_link_name($name, $branch_name, $prepend, $append, implode(' ', $words));
+  return api_link_name($name, $branch_name, $prepend, $append, implode(' ', $words), TRUE);
 }
