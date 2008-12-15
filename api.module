@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.66 2008/12/15 02:11:19 drumm Exp $
+// $Id: api.module,v 1.67 2008/12/15 07:13:50 drumm Exp $
 
 /**
  * @file
@@ -89,10 +89,10 @@ The module indexes code branches during cron runs, so make sure the site has cro
   }
 }
 
-function api_get_branches() {
+function api_get_branches($_reset = FALSE) {
   static $branches;
 
-  if (!isset($branches)) {
+  if (!isset($branches) || $_reset) {
     $result = db_query('SELECT branch_name, title, directory FROM {api_branch}');
     $branches = array();
     while ($branch = db_fetch_object($result)) {
@@ -629,6 +629,38 @@ function api_block($op, $delta = NULL, $edit = array()) {
           );
       }
   }
+}
+
+/**
+ * Save an API branch.
+ *
+ * @param $branch
+ *   A branch object, with branch_name, title, and directory variables.
+ * @param $old_branch_name
+ *   To replace a branch, provide the old branch name.
+ */
+function api_save_branch($branch, $old_branch_name = NULL) {
+  if (empty($old_branch_name)) {
+    drupal_write_record('api_branch', $branch);
+    if (is_null(variable_get('api_default_branch', NULL))) {
+      variable_set('api_default_branch', $branch->branch_name);
+    }
+  }
+  else {
+    if ($branch->branch_name !== $old_branch_name) {
+      db_query("UPDATE {api_branch} SET branch_name = '%s' WHERE branch_name = '%s'", $branch->branch_name, $old_branch_name);
+      db_query("UPDATE {api_documentation} SET branch_name = '%s' WHERE branch_name = '%s'", $branch->branch_name, $old_branch_name);
+      db_query("UPDATE {api_file} f INNER JOIN {api_documentation} d ON d.did = f.did SET f.modified = 52 WHERE d.branch_name = '%s'", $branch->branch_name);
+      if (variable_get('api_default_branch', NULL) === $old_branch_name) {
+        variable_set('api_default_branch', $branch->branch_name);
+      }
+    }
+    drupal_write_record('api_branch', $branch, 'branch_name');
+  }
+
+  // Clear out the caches.
+  api_get_branches(TRUE);
+  menu_rebuild();
 }
 
 function api_get_active_branch() {

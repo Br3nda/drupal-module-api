@@ -137,26 +137,8 @@ function api_branch_edit_form_submit($form, &$form_state) {
   $branch->branch_name = $form_state['values']['branch_name'];
   $branch->title = $form_state['values']['title'];
   $branch->directory = $form_state['values']['directory'];
-  $old_branch_name = $form['branch_name']['#default_value'];
 
-  if (empty($old_branch_name)) {
-    drupal_write_record('api_branch', $branch);
-    if (is_null(variable_get('api_default_branch', NULL))) {
-      variable_set('api_default_branch', $branch->branch_name);
-    }
-  }
-  else {
-    if ($branch->branch_name !== $old_branch_name) {
-      db_query("UPDATE {api_branch} SET branch_name = '%s' WHERE branch_name = '%s'", $branch->branch_name, $old_branch_name);
-      db_query("UPDATE {api_documentation} SET branch_name = '%s' WHERE branch_name = '%s'", $branch->branch_name, $old_branch_name);
-      db_query("UPDATE {api_file} f INNER JOIN {api_documentation} d ON d.did = f.did SET f.modified = 52 WHERE d.branch_name = '%s'", $branch->branch_name);
-      if (variable_get('api_default_branch', NULL) === $old_branch_name) {
-        variable_set('api_default_branch', $branch->branch_name);
-      }
-    }
-    drupal_write_record('api_branch', $branch, 'branch_name');
-  }
-  menu_rebuild();
+  api_save_branch($branch, $form['branch_name']['#default_value']);
 
   drupal_set_message(t('Saved %branch_name.', array('%branch_name' => $branch->branch_name)));
   $form_state['redirect'] = 'admin/settings/api';
