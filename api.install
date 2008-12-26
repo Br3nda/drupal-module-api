@@ -1,5 +1,5 @@
 <?php
-// $Id: api.install,v 1.8 2008/08/26 05:41:28 drumm Exp $
+// $Id: api.install,v 1.9 2008/12/26 21:14:25 drumm Exp $
 
 function api_schema() {
   $schema['api_branch'] = array(
@@ -198,6 +198,17 @@ function api_update_9() {
   while ($branch = db_fetch_object($result)) {
     db_query("UPDATE {api_branch} SET directory = '%s' WHERE branch_name = '%s'", strtr($branch->directory, ':', "\n"), $branch->branch_name);
   }
+
+  return $return;
+}
+
+/**
+ * Make sure block cache rules are set properly.
+ */
+function api_update_10() {
+  $return = array();
+
+  $return[] = update_sql("UPDATE {blocks} SET cache = ". (BLOCK_CACHE_PER_PAGE | BLOCK_CACHE_PER_ROLE) ." WHERE module = 'api'");
 
   return $return;
 }

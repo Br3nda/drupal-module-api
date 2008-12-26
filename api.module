@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.70 2008/12/26 21:11:18 drumm Exp $
+// $Id: api.module,v 1.71 2008/12/26 21:14:25 drumm Exp $
 
 /**
  * @file
@@ -588,9 +588,11 @@ function api_block($op, $delta = NULL, $edit = array()) {
       return array(
         'api-search' => array(
           'info' => t('API search'),
+          'cache' => BLOCK_CACHE_PER_PAGE | BLOCK_CACHE_PER_ROLE,
         ),
         'navigation' => array(
           'info' => t('API navigation'),
+          'cache' => BLOCK_CACHE_PER_PAGE | BLOCK_CACHE_PER_ROLE,
         ),
       );
 
