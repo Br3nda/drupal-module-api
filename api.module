@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.69 2008/12/26 07:14:22 drumm Exp $
+// $Id: api.module,v 1.70 2008/12/26 21:11:18 drumm Exp $
 
 /**
  * @file
@@ -962,7 +962,7 @@ function api_page_file($file) {
   drupal_set_title($file->title);
 
   $documentation = api_link_documentation($file->documentation, $file->branch_name);
-  $result = db_query("SELECT title, object_name, summary, object_type FROM {api_documentation} WHERE file_name = '%s' AND branch_name = '%s' AND object_type IN ('constant', 'global', 'function') ORDER BY title", $file->object_name, $file->branch_name);
+  $result = db_query("SELECT title, object_name, summary, object_type, branch_name FROM {api_documentation} WHERE file_name = '%s' AND branch_name = '%s' AND object_type IN ('constant', 'global', 'function') ORDER BY title", $file->object_name, $file->branch_name);
   $rows = array(
     'constant' => array(),
     'global' => array(),
