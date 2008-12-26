@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.71 2008/12/26 21:14:25 drumm Exp $
+// $Id: api.module,v 1.72 2008/12/26 21:24:14 drumm Exp $
 
 /**
  * @file
@@ -599,38 +599,44 @@ function api_block($op, $delta = NULL, $edit = array()) {
     case 'view':
       switch ($delta) {
         case 'api-search':
-          $branches = api_get_branches();
-          $branch = api_get_active_branch();
+          if (user_access('access API reference')) {
+            $branches = api_get_branches();
+            $branch = api_get_active_branch();
 
-          return array(
-            'subject' => t('Search @branch', array('@branch' => $branches[$branch]->title)),
-            'content' => drupal_get_form('api_search_form', $branches[$branch]->branch_name),
-          );
+            return array(
+              'subject' => t('Search @branch', array('@branch' => $branches[$branch]->title)),
+              'content' => drupal_get_form('api_search_form', $branches[$branch]->branch_name),
+            );
+          }
+          return;
 
         case 'navigation':
-          // We forgo the menu system because we want to link to non-default
-          // local tasks; as of Drupal 5.x, this seems impossible.
-          $branches = api_get_branches();
-          $branch = api_get_active_branch();
+          if (user_access('access API reference')) {
+            // We forgo the menu system because we want to link to non-default
+            // local tasks; as of Drupal 5.x, this seems impossible.
+            $branches = api_get_branches();
+            $branch = api_get_active_branch();
 
-          if ($branch == variable_get('api_default_branch', 'HEAD')) {
-            $suffix = '';
+            if ($branch == variable_get('api_default_branch', 'HEAD')) {
+              $suffix = '';
+            }
+            else {
+              $suffix = '/'. $branch;
+            }
+
+            $links = array();
+            $links[] = l($branches[$branch]->title, 'api'. $suffix);
+            $links[] = l(t('Constants'), 'api/constants'. $suffix);
+            $links[] = l(t('Files'), 'api/files'. $suffix);
+            $links[] = l(t('Functions'), 'api/functions'. $suffix);
+            $links[] = l(t('Globals'), 'api/globals'. $suffix);
+            $links[] = l(t('Topics'), 'api/groups'. $suffix);
+
+            return array(
+              'content' => theme('item_list', $links),
+            );
           }
-          else {
-            $suffix = '/'. $branch;
-          }
-
-          $links = array();
-          $links[] = l($branches[$branch]->title, 'api'. $suffix);
-          $links[] = l(t('Constants'), 'api/constants'. $suffix);
-          $links[] = l(t('Files'), 'api/files'. $suffix);
-          $links[] = l(t('Functions'), 'api/functions'. $suffix);
-          $links[] = l(t('Globals'), 'api/globals'. $suffix);
-          $links[] = l(t('Topics'), 'api/groups'. $suffix);
-
-          return array(
-            'content' => theme('item_list', $links),
-          );
+          return;
       }
   }
 }
