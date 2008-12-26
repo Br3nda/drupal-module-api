@@ -168,6 +168,11 @@ function api_branch_delete_form_submit($form, &$form_state) {
   db_query("DELETE t FROM {api_reference_storage} t INNER JOIN {api_documentation} d ON d.did = t.from_did WHERE d.branch_name = '%s'", $form['branch_name']['#value']);
   db_query("DELETE t FROM {api_reference_storage} t INNER JOIN {api_documentation} d ON d.did = t.to_did WHERE d.branch_name = '%s'", $form['branch_name']['#value']);
   db_query("DELETE t FROM {api_documentation} t INNER JOIN {api_documentation} d ON d.did = t.did WHERE d.branch_name = '%s'", $form['branch_name']['#value']);
+
+  if (variable_get('api_default_branch', NULL) == $form['branch_name']['#value']) {
+    variable_set('api_default_branch', NULL);
+  }
+
   menu_rebuild();
   $form_state['redirect'] = 'admin/settings/api';
 }

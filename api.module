@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.72 2008/12/26 21:24:14 drumm Exp $
+// $Id: api.module,v 1.73 2008/12/26 21:58:44 drumm Exp $
 
 /**
  * @file
@@ -113,7 +113,7 @@ function api_menu() {
   $access_arguments = array('access API reference');
 
   $branches = api_get_branches();
-  $default_branch = variable_get('api_default_branch', 'HEAD');
+  $default_branch = variable_get('api_default_branch', NULL);
 
   // Part 1: No object, Default branch
   $items['api'] = array(
@@ -478,7 +478,7 @@ function api_object_load($object_name, $object_type, $branch_name = NULL) {
   static $cache;
 
   if (is_null($branch_name)) {
-    $branch_name = variable_get('api_default_branch', 'HEAD');
+    $branch_name = variable_get('api_default_branch', NULL);
   }
 
   $key = $object_name .':'. $object_type .':'. $branch_name;
@@ -597,12 +597,12 @@ function api_block($op, $delta = NULL, $edit = array()) {
       );
 
     case 'view':
+      $branches = api_get_branches();
+      $branch = api_get_active_branch();
+
       switch ($delta) {
         case 'api-search':
-          if (user_access('access API reference')) {
-            $branches = api_get_branches();
-            $branch = api_get_active_branch();
-
+          if (user_access('access API reference') && isset($branches[$branch])) {
             return array(
               'subject' => t('Search @branch', array('@branch' => $branches[$branch]->title)),
               'content' => drupal_get_form('api_search_form', $branches[$branch]->branch_name),
@@ -611,13 +611,10 @@ function api_block($op, $delta = NULL, $edit = array()) {
           return;
 
         case 'navigation':
-          if (user_access('access API reference')) {
+          if (user_access('access API reference') && isset($branches[$branch])) {
             // We forgo the menu system because we want to link to non-default
             // local tasks; as of Drupal 5.x, this seems impossible.
-            $branches = api_get_branches();
-            $branch = api_get_active_branch();
-
-            if ($branch == variable_get('api_default_branch', 'HEAD')) {
+            if ($branch == variable_get('api_default_branch', NULL)) {
               $suffix = '';
             }
             else {
@@ -716,7 +713,7 @@ function api_get_active_branch() {
       }
     }
     if (!isset($branch)) {
-      $branch = variable_get('api_default_branch', 'HEAD');
+      $branch = variable_get('api_default_branch', NULL);
     }
   }
 
@@ -750,7 +747,7 @@ function api_search_form_submit($form, &$form_state) {
 }
 
 function api_search_redirect() {
-  drupal_goto('api/search/'. variable_get('api_default_branch', 'HEAD') .'/'. implode('/', func_get_args()));
+  drupal_goto('api/search/'. variable_get('api_default_branch', NULL) .'/'. implode('/', func_get_args()));
 }
 
 /**
