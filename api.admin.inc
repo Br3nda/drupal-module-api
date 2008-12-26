@@ -2,25 +2,33 @@
 // $Id:
 
 function api_page_admin_form() {
+  $branches = api_get_branches();
   $form = array();
 
-  $form['branches'] = array(
-    '#theme' => 'api_branch_table',
-  );
-  foreach (api_get_branches() as $branch) {
-    $form['branches'][$branch->branch_name]['default_branch'] = array(
-      '#type' => 'radio',
-      '#default_value' => variable_get('api_default_branch', NULL),
-      '#return_value' => $branch->branch_name,
+  if (count($branches) > 0) {
+    $form['branches'] = array(
+      '#theme' => 'api_branch_table',
     );
-    $form['branches'][$branch->branch_name]['title'] = array(
-      '#value' => l($branch->title, 'admin/settings/api/branches/'. $branch->branch_name),
-    );
-    $form['branches'][$branch->branch_name]['branch_name'] = array(
-      '#value' => $branch->branch_name,
-    );
-    $form['branches'][$branch->branch_name]['directory'] = array(
-      '#value' => str_replace("\n", '<br />', check_plain($branch->directory)),
+    foreach ($branches as $branch) {
+      $form['branches'][$branch->branch_name]['default_branch'] = array(
+        '#type' => 'radio',
+        '#default_value' => variable_get('api_default_branch', NULL),
+        '#return_value' => $branch->branch_name,
+      );
+      $form['branches'][$branch->branch_name]['title'] = array(
+        '#value' => l($branch->title, 'admin/settings/api/branches/'. $branch->branch_name),
+      );
+      $form['branches'][$branch->branch_name]['branch_name'] = array(
+        '#value' => $branch->branch_name,
+      );
+      $form['branches'][$branch->branch_name]['directory'] = array(
+        '#value' => str_replace("\n", '<br />', check_plain($branch->directory)),
+      );
+    }
+  }
+  else {
+    $form['branches'] = array(
+      '#value' => '<p><em>'. t('There are no branches yet. You can <a href="@url">add a branch</a>.', array('@url' => url('admin/settings/api/branches/new'))) .'</em></p>',
     );
   }
 
