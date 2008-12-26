@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.68 2008/12/26 01:20:08 drumm Exp $
+// $Id: api.module,v 1.69 2008/12/26 07:14:22 drumm Exp $
 
 /**
  * @file
@@ -862,7 +862,7 @@ function api_page_function($function) {
     $d = 0;
     foreach ($tokens as $token) {
       $d += in_array($token, array('(', '{', '[')) - in_array($token, array(')', '}', ']'));
-      if ($d == 1 && $start && is_array($token) && $token[0] != T_WHITESPACE) {
+      if ($d == 1 && $start && is_array($token) && $token[0] == T_VARIABLE) {
         $arguments[$signature->branch_name][] = $token[1];
         $other[$signature->branch_name][] = '';
         $start = FALSE;
