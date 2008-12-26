@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.67 2008/12/15 07:13:50 drumm Exp $
+// $Id: api.module,v 1.68 2008/12/26 01:20:08 drumm Exp $
 
 /**
  * @file
@@ -578,6 +578,10 @@ function api_theme() {
   );
 }
 
+function api_init() {
+  drupal_add_css(drupal_get_path('module', 'api') .'/api.css');
+}
+
 function api_block($op, $delta = NULL, $edit = array()) {
   switch ($op) {
     case 'list':
@@ -593,8 +597,6 @@ function api_block($op, $delta = NULL, $edit = array()) {
     case 'view':
       switch ($delta) {
         case 'api-search':
-          drupal_add_css(drupal_get_path('module', 'api') .'/api.css', 'module');
-
           $branches = api_get_branches();
           $branch = api_get_active_branch();
 
@@ -846,7 +848,6 @@ function api_page_function_dump($branch_name) {
  * Menu callback; displays documentation for a function.
  */
 function api_page_function($function) {
-  drupal_add_css(drupal_get_path('module', 'api') .'/api.css');
   drupal_set_title($function->title);
 
   $signatures = array();
@@ -919,7 +920,6 @@ function api_page_function($function) {
  * Menu callback; displays all functions that reference another function.
  */
 function api_page_function_references($function) {
-  drupal_add_css(drupal_get_path('module', 'api') .'/api.css');
   drupal_set_title($function->title);
 
   $related_topics = api_related_topics($function->did, $function->branch_name);
@@ -933,7 +933,6 @@ function api_page_function_references($function) {
  * Menu callback; displays documentation for a constant.
  */
 function api_page_constant($constant) {
-  drupal_add_css(drupal_get_path('module', 'api') .'/api.css');
   drupal_set_title($constant->title);
 
   $documentation = api_link_documentation($constant->documentation, $constant->branch_name);
@@ -947,7 +946,6 @@ function api_page_constant($constant) {
  * Menu callback; displays documentation for a global.
  */
 function api_page_global($global) {
-  drupal_add_css(drupal_get_path('module', 'api') .'/api.css');
   drupal_set_title($global->title);
 
   $documentation = api_link_documentation($global->documentation, $global->branch_name);
@@ -961,7 +959,6 @@ function api_page_global($global) {
  * Menu callback; displays documentation for a file.
  */
 function api_page_file($file) {
-  drupal_add_css(drupal_get_path('module', 'api') .'/api.css');
   drupal_set_title($file->title);
 
   $documentation = api_link_documentation($file->documentation, $file->branch_name);
@@ -1001,7 +998,6 @@ function api_page_file($file) {
  * Menu callback; displays source code for a file.
  */
 function api_page_file_source($file) {
-  drupal_add_css(drupal_get_path('module', 'api') .'/api.css');
   drupal_set_title($file->title);
 
   return api_link_code($file->code, $file->branch_name);
@@ -1011,7 +1007,6 @@ function api_page_file_source($file) {
  * Menu callback; displays documentation for a group.
  */
 function api_page_group($group) {
-  drupal_add_css(drupal_get_path('module', 'api') .'/api.css');
   drupal_set_title($group->title);
 
   $documentation = api_link_documentation($group->documentation, $group->branch_name);
