@@ -1,7 +1,9 @@
 <?php
-// $Id: api_link_documentation.test,v 1.4 2008/08/27 13:21:29 drumm Exp $
+// $Id: api_link_documentation.test,v 1.5 2008/12/26 21:19:50 drumm Exp $
 
-class ApiLinkDocumentationTest extends DrupalWebTestCase {
+include_once './'. drupal_get_path('module', 'api') .'/tests/api_test_case.php';
+
+class ApiLinkDocumentationTest extends ApiTestCase {
   function getInfo() {
     return array(
       'name' => t('api_link_documentation()'),
@@ -10,122 +12,104 @@ class ApiLinkDocumentationTest extends DrupalWebTestCase {
     );
   }
 
-  function setUp() {
-  }
-  
   function testApiLinkDocumentation() {
-    $branch_name = variable_get('api_default_branch', 'HEAD');
-
-    $function_name = 'drupal_bootstrap';
-    $function_text = 'Bootstrap function';
-    $function_summary = db_result(db_query("SELECT summary FROM {api_documentation} WHERE branch_name = '%s' AND object_type = 'function' AND object_name = '%s'", $branch_name, $function_name));
-    $function_link = '<a href="'. url('api/function/'. $function_name .'/'. $branch_name) .'" title="'. $function_summary .'" class="local">'. $function_name .'</a>';
-    $function_at_link = '<a href="'. url('api/function/'. $function_name .'/'. $branch_name) .'" title="'. $function_summary .'" class="local">'. $function_text .'</a>';
-
-    $file_path = 'modules/system/system.module';
-    $file_name = basename($file_path);
-    $file_text = 'System module';
-    $file_summary = db_result(db_query("SELECT summary FROM {api_documentation} WHERE branch_name = '%s' AND object_type = 'file' AND object_name = '%s'", $branch_name, $file_path));
-    $file_link = '<a href="'. url('api/file/'. $file_path .'/'. $branch_name) .'" title="'. $file_summary .'" class="local">'. $file_name .'</a>';
-    $file_at_link = '<a href="'. url('api/file/'. $file_path .'/'. $branch_name) .'" title="'. $file_summary .'" class="local">'. $file_text .'</a>';
-
     $tests = array(
       // Should be linked
       array(
         'message' => 'Function name linking',
-        'data' => $function_name .'(',
-        'expected' => $function_link .'(',
+        'data' => 'sample_function(',
+        'expected' => '<a href="'. url('api/function/sample_function/6') .'" title="A sample function." class="local">sample_function</a>(',
       ),
       array(
         'message' => 'Function name linking with preceding space',
-        'data' => ' '. $function_name .'(',
-        'expected' => ' '. $function_link .'(',
+        'data' => ' sample_function(',
+        'expected' => ' <a href="'. url('api/function/sample_function/6') .'" title="A sample function." class="local">sample_function</a>(',
       ),
       array(
         'message' => 'Function @link',
-        'data' => '@link '. $function_name .' '. $function_text .' @endlink',
-        'expected' => $function_at_link,
+        'data' => '@link sample_function A sample function. @endlink',
+        'expected' => '<a href="'. url('api/function/sample_function/6') .'" title="A sample function." class="local">A sample function.</a>',
       ),
 
       // Should not be linked
       array(
         'message' => 'Function name linking with preceding non-space character',
-        'data' => '.'. $function_name .'(',
-        'expected' => '.'. $function_name .'(',
+        'data' => '.sample_function(',
+        'expected' => '.sample_function(',
       ),
       array(
         'message' => 'Function name linking with preceding letter',
-        'data' => 'a'. $function_name .'(',
-        'expected' => 'a'. $function_name .'(',
+        'data' => 'asample_function(',
+        'expected' => 'asample_function(',
       ),
       array(
         'message' => 'Function name linking without parenthesis',
-        'data' => $function_name,
-        'expected' => $function_name,
+        'data' => 'sample_function',
+        'expected' => 'sample_function',
       ),
       array(
         'message' => 'Function name linking inside a HTML tag',
-        'data' => '<tag attribute="'. $function_name .'()">',
-        'expected' => '<tag attribute="'. $function_name .'()">',
+        'data' => '<tag attribute="sample_function()">',
+        'expected' => '<tag attribute="sample_function()">',
       ),
       array(
         'message' => 'Function \@link',
-        'data' => '\@link '. $function_name .' '. $function_text .' @endlink',
-        'expected' => '\@link '. $function_name .' '. $function_text .' @endlink',
+        'data' => '\@link sample_function A sample function. @endlink',
+        'expected' => '\@link sample_function A sample function. @endlink',
       ),
 
       // Should be linked
       array(
         'message' => 'File name linking',
-        'data' => $file_name,
-        'expected' => $file_link,
+        'data' => 'sample.php',
+        'expected' => '<a href="'. url('api/file/sample.php/6') .'" title="A sample file." class="local">sample.php</a>',
       ),
       array(
         'message' => 'File name linking with preceding space',
-        'data' => ' '. $file_name,
-        'expected' => ' '. $file_link,
+        'data' => ' sample.php',
+        'expected' => ' <a href="'. url('api/file/sample.php/6') .'" title="A sample file." class="local">sample.php</a>',
       ),
       array(
         'message' => 'File name linking with following space',
-        'data' => $file_name .' ',
-        'expected' => $file_link .' ',
+        'data' => 'sample.php ',
+        'expected' => '<a href="'. url('api/file/sample.php/6') .'" title="A sample file." class="local">sample.php</a> ',
       ),
       array(
         'message' => 'File name linking with following punctuation',
-        'data' => $file_name .'.',
-        'expected' => $file_link .'.',
+        'data' => 'sample.php.',
+        'expected' => '<a href="'. url('api/file/sample.php/6') .'" title="A sample file." class="local">sample.php</a>.',
       ),
       array(
         'message' => 'File @link',
-        'data' => '@link '. $file_name .' '. $file_text .' @endlink',
-        'expected' => $file_at_link,
+        'data' => '@link sample.php A sample file. @endlink',
+        'expected' => '<a href="'. url('api/file/sample.php/6') .'" title="A sample file." class="local">A sample file.</a>',
       ),
 
       // Should not be linked
       array(
         'message' => 'File name linking with preceding non-space character',
-        'data' => '.'. $file_name,
-        'expected' => '.'. $file_name,
+        'data' => '.sample.php',
+        'expected' => '.sample.php',
       ),
       array(
         'message' => 'File name linking with preceding letter',
-        'data' => 'a'. $file_name,
-        'expected' => 'a'. $file_name,
+        'data' => 'asample.php',
+        'expected' => 'asample.php',
       ),
       array(
         'message' => 'File name linking inside a HTML tag',
-        'data' => '<tag attribute="'. $file_name .'">',
-        'expected' => '<tag attribute="'. $file_name .'">',
+        'data' => '<tag attribute="sample.php">',
+        'expected' => '<tag attribute="sample.php">',
       ),
       array(
         'message' => 'File \@link, does fill in file link',
-        'data' => '\@link '. $file_name .' '. $file_text .' @endlink',
-        'expected' => '\@link '. $file_link .' '. $file_text .' @endlink',
+        'data' => '\@link sample.php A sample file. @endlink',
+        'expected' => '\@link <a href="'. url('api/file/sample.php/6') .'" title="A sample file." class="local">sample.php</a> A sample file. @endlink',
       ),
     );
 
     foreach ($tests as $test) {
-      $result = api_link_documentation($test['data'], $branch_name);
+      $result = api_link_documentation($test['data'], 6);
       $this->assertEqual($result, $test['expected'], $test['message']);
     }
   }

@@ -1,7 +1,9 @@
 <?php
-// $Id: api_link_code.test,v 1.4 2008/12/15 07:16:19 drumm Exp $
+// $Id: api_link_code.test,v 1.5 2008/12/26 21:19:50 drumm Exp $
 
-class ApiLinkCodeTest extends DrupalWebTestCase {
+include_once './'. drupal_get_path('module', 'api') .'/tests/api_test_case.php';
+
+class ApiLinkCodeTest extends ApiTestCase {
   function getInfo() {
     return array(
       'name' => t('api_link_code()'),
@@ -9,27 +11,8 @@ class ApiLinkCodeTest extends DrupalWebTestCase {
       'group' => 'API Module',
     );
   }
-
-  function setUp() {
-    parent::setUp('api', 'job_queue');
-
-    include drupal_get_path('module', 'api') .'/api.admin.inc';
-    include drupal_get_path('module', 'api') .'/parser.inc';
-
-    // Make a branch for sample code.
-    $branch->branch_name = '6';
-    $branch->title = 'Testing 6';
-    $branch->directory = drupal_get_path('module', 'api') .'/tests/sample';
-    api_save_branch($branch);
-
-    // Parse the code.
-    api_update_all_branches();
-    while (job_queue_dequeue()) { }
-  }
   
   function testApiLinkCode() {
-    $branch_name = '6';
-
     $tests = array(
       // Should be linked
       array(
@@ -52,7 +35,7 @@ class ApiLinkCodeTest extends DrupalWebTestCase {
     );
 
     foreach ($tests as $test) {
-      $result = api_link_code($test['data'], $branch_name);
+      $result = api_link_code($test['data'], '6');
       $this->assertEqual($result, $test['expected'], $test['message']);
     }
   }
