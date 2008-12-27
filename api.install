@@ -1,5 +1,5 @@
 <?php
-// $Id: api.install,v 1.9 2008/12/26 21:14:25 drumm Exp $
+// $Id: api.install,v 1.10 2008/12/27 00:02:49 drumm Exp $
 
 function api_schema() {
   $schema['api_branch'] = array(
@@ -46,7 +46,7 @@ function api_schema() {
       'signature' => array('type' => 'varchar', 'length' => '255', 'not null' => TRUE, 'default' => ''),
       'start_line' => array('type' => 'int', 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'),
       'parameters' => array('type' => 'text', 'size' => 'medium', 'not null' => TRUE),
-      'return' => array('type' => 'text', 'size' => 'medium', 'not null' => TRUE),
+      'return_value' => array('type' => 'text', 'size' => 'medium', 'not null' => TRUE),
     ),
     'primary key' => array('did'),
   );
@@ -209,6 +209,19 @@ function api_update_10() {
   $return = array();
 
   $return[] = update_sql("UPDATE {blocks} SET cache = ". (BLOCK_CACHE_PER_PAGE | BLOCK_CACHE_PER_ROLE) ." WHERE module = 'api'");
+
+  return $return;
+}
+
+/**
+ * return is a reserved word.
+ */
+function api_update_11() {
+  $return = array();
+
+  db_change_field($return, 'api_function', '`return`', 'return_value',
+    array('type' => 'text', 'size' => 'medium', 'not null' => TRUE)
+  );
 
   return $return;
 }

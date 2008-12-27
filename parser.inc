@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.39 2008/12/15 02:11:19 drumm Exp $
+// $Id: parser.inc,v 1.40 2008/12/27 00:02:49 drumm Exp $
 
 /**
  * @file
@@ -27,7 +27,7 @@ function api_parse_php_manual($location) {
         'signature' => '',
         'start_line' => 0,
         'parameters' => '',
-        'return' => '',
+        'return_value' => '',
       );
       api_save_documentation(array($docblock));
     }
@@ -178,13 +178,13 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
 
       // Find return value definitions.
       $return_matches = array();
-      $docblock['return'] = '';
+      $docblock['return_value'] = '';
       preg_match_all('!@return(.*?)(\n@|\n\n|$)!s', $docblock['content'], $return_matches, PREG_SET_ORDER);
       foreach ($return_matches as $return_match) {
         $docblock['content'] = str_replace($return_match[0], '', $docblock['content']);
-        $docblock['return'] .= "\n\n". $return_match[1];
+        $docblock['return_value'] .= "\n\n". $return_match[1];
       }
-      $docblock['return'] = api_format_documentation($docblock['return'], $branch_name);
+      $docblock['return_value'] = api_format_documentation($docblock['return_value'], $branch_name);
 
       // Find referenced functions.
       $function_call_matches = array();
@@ -324,7 +324,7 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
       'code' => '');
     $docblock['signature'] = $function_match[1][0];
     $docblock['parameters'] = '';
-    $docblock['return'] = '';
+    $docblock['return_value'] = '';
     $docblock['groups'] = array();
 
     $code_start = $function_match[0][1];
@@ -426,7 +426,7 @@ function api_save_documentation($docblocks, $branch_name = NULL, $file_name = NU
     switch ($docblock['object_type']) {
       case 'function':
         db_query('DELETE FROM {api_function} WHERE did = %d', $did);
-        db_query("INSERT INTO {api_function} (did, signature, start_line, parameters, `return`) VALUES (%d, '%s', %d, '%s', '%s')", $did, $docblock['signature'], $docblock['start_line'], $docblock['parameters'], $docblock['return']);
+        db_query("INSERT INTO {api_function} (did, signature, start_line, parameters, return_value) VALUES (%d, '%s', %d, '%s', '%s')", $did, $docblock['signature'], $docblock['start_line'], $docblock['parameters'], $docblock['return_value']);
 
         if (isset($docblock['function calls'])) {
           db_query("DELETE FROM {api_reference_storage} WHERE branch_name = '%s' AND object_type = 'function' AND from_did = %d", $docblock['branch_name'], $did);

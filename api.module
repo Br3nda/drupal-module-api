@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.73 2008/12/26 21:58:44 drumm Exp $
+// $Id: api.module,v 1.74 2008/12/27 00:02:49 drumm Exp $
 
 /**
  * @file
@@ -914,7 +914,7 @@ function api_page_function($function) {
 
   $documentation = api_link_documentation($function->documentation, $function->branch_name);
   $parameters = api_link_documentation($function->parameters, $function->branch_name);
-  $return = api_link_documentation($function->return, $function->branch_name);
+  $return = api_link_documentation($function->return_value, $function->branch_name);
   $code = api_link_code($function->code, $function->branch_name);
   $related_topics = api_related_topics($function->did, $function->branch_name);
 
