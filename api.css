@@ -1,4 +1,4 @@
-/* $Id: api.css,v 1.7 2008/12/15 02:11:19 drumm Exp $ */
+/* $Id: api.css,v 1.8 2008/12/27 00:34:52 drumm Exp $ */
 
 .php {
   font-family: monospace;
@@ -81,6 +81,10 @@
 
 /* Search block- make the text field the correct width */
 
+#api-search-form #edit-search-wrapper {
+  display: inline;
+}
+
 #api-search-form #edit-search {
-  width: 95%;
+  width: 115px;
 }
