@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.24.2.15 2008/01/23 02:49:56 drumm Exp $
+// $Id: parser.inc,v 1.24.2.16 2008/12/27 04:42:59 drumm Exp $
 
 /**
  * @file
@@ -209,7 +209,7 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
       $function_matches = array();
 
       $docblock['object_type'] = 'function';
-      preg_match('!^function (([a-zA-Z0-9_]+)\(.*?) \{!', substr($source, $code_start), $function_matches);
+      preg_match('!^function (&?([a-zA-Z0-9_]+)\(.*?)\s*\{!', substr($source, $code_start), $function_matches);
       $docblock['object_name'] = $function_matches[2];
       $docblock['title'] = $function_matches[2];
       $docblock['signature'] = $function_matches[1];
@@ -245,7 +245,8 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
       // Find referenced functions.
       $function_call_matches = array();
       $docblock['function calls'] = array();
-      preg_match_all('!<span class="php-function-or-constant">([a-zA-Z0-9_]+)</span>\(!', substr($docblock['code'], strlen('<div class="php"><code><span class="php-keyword">function</span> <span class="php-function-or-constant">')), $function_call_matches, PREG_SET_ORDER);
+      preg_match_all('!<span class="php-function-or-constant">([a-zA-Z0-9_]+)</span>\(!', $docblock['code'], $function_call_matches, PREG_SET_ORDER);
+      array_shift($function_call_matches); // Remove the first match, the function declaration itself
       foreach ($function_call_matches as $function_call_match) {
         $docblock['function calls'][$function_call_match[1]] = $function_call_match[1];
       }
@@ -364,7 +365,7 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
 
   // Find undocumented functions.
   $function_matches = array();
-  preg_match_all('%(?<!\*/\n)^function (([a-zA-Z0-9_]+)\(.*?) \{%sm', $source, $function_matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+  preg_match_all('%(?<!\*/\n)^function (&?([a-zA-Z0-9_]+)\(.*?)\s*\{%sm', $source, $function_matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
   foreach ($function_matches as $function_match) {
     $docblock = array(
       'object_name' => $function_match[2][0],
