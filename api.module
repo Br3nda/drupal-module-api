@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.74 2008/12/27 00:02:49 drumm Exp $
+// $Id: api.module,v 1.75 2008/12/27 00:53:32 drumm Exp $
 
 /**
  * @file
@@ -759,27 +759,16 @@ function api_search_listing($branch_name) {
   $search_text = implode('/', $search_text);
   drupal_set_title(t('Search for %search', array('%search' => $search_text)));
 
-  // Exact match.
-  $result = db_query("SELECT * FROM {api_documentation} WHERE branch_name = '%s' AND title = '%s'", $branch_name, $search_text);
-  $count = db_affected_rows($result);
-  if ($count != 1) {
-    // Wildcard search.
-    $result = db_query("SELECT * FROM {api_documentation} WHERE branch_name = '%s' AND title LIKE '%%%s%%'", $branch_name, $search_text);
-    $count = db_affected_rows($result);
+  $count = db_result(db_query("SELECT count(*) FROM {api_documentation} WHERE branch_name = '%s' AND title = '%s'", $branch_name, $search_text));
+  if ($count == 1) {
+    // Exact match.
+    $item = db_fetch_object(db_query("SELECT * FROM {api_documentation} WHERE branch_name = '%s' AND title = '%s'", $branch_name, $search_text));
+    drupal_goto('api/'. $item->object_type .'/'. $item->object_name .'/'. $item->branch_name);
   }
-
-  switch ($count) {
-    case 0:
-      return t("Search found no results.");
-
-    case 1:
-      $item = db_fetch_object($result);
-      drupal_goto('api/'. $item->object_type .'/'. $item->object_name .'/'. $item->branch_name);
-      break;
-
-    default:
-      $result = pager_query("SELECT * FROM {api_documentation} WHERE branch_name = '%s' AND object_name LIKE '%%%s%%' ORDER BY title", 50, 0, NULL, $branch_name, $search_text);
-      return api_render_listing($result) . theme('pager', NULL, 50, 0);
+  else {
+    // Wildcard search.
+    $result = pager_query("SELECT * FROM {api_documentation} WHERE branch_name = '%s' AND object_name LIKE '%%%s%%' ORDER BY title", 50, 0, NULL, $branch_name, $search_text);
+    return api_render_listing($result, t('No search results found.')) . theme('pager', NULL, 50, 0);
   }
 }
 
@@ -818,8 +807,13 @@ function api_page_listing($branch_name, $object_type) {
 
 /**
  * Render a table with an overview of documentation objects.
+ *
+ * @param $result
+ *   A database query result object.
+ * @param $empty_message
+ *   An optional string to display instead of an empty table.
  */
-function api_render_listing($result) {
+function api_render_listing($result, $empty_message = NULL) {
   $headers = array(
     t('Name'),
     t('Location'),
@@ -835,7 +829,12 @@ function api_render_listing($result) {
     );
   }
 
-  return theme('table', $headers, $rows);
+  if ($empty_message != NULL && count($rows) == 0) {
+    return '<p><em>'. $empty_message .'</em></p>';
+  }
+  else {
+    return theme('table', $headers, $rows);
+  }
 }
 
 /**
