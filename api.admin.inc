@@ -181,7 +181,7 @@ function api_php_manual_index_form() {
   $form = array();
   $form['api_php_funcsummary'] = array(
     '#type' => 'textfield',
-    '#default_value' => variable_get('api_php_funcsummary', 'http://cvs.php.net/viewcvs.cgi/phpdoc/funcsummary.txt?&view=markup'),
+    '#default_value' => variable_get('api_php_funcsummary', 'http://cvs.php.net/viewvc.cgi/phpdoc/funcsummary.txt?view=co'),
     '#description' => t('The URL of the PHP function summary document.'),
   );
   $form['api_php_funcpath'] = array(
