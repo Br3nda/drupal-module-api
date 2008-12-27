@@ -1,5 +1,5 @@
 <?php
-// $Id: parser.inc,v 1.40 2008/12/27 00:02:49 drumm Exp $
+// $Id: parser.inc,v 1.41 2008/12/27 03:09:36 drumm Exp $
 
 /**
  * @file
@@ -186,14 +186,7 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
       }
       $docblock['return_value'] = api_format_documentation($docblock['return_value'], $branch_name);
 
-      // Find referenced functions.
-      $function_call_matches = array();
-      $docblock['function calls'] = array();
-      preg_match_all('!<span class="php-function-or-constant">([a-zA-Z0-9_]+)</span>\(!', $docblock['code'], $function_call_matches, PREG_SET_ORDER);
-      array_shift($function_call_matches); // Remove the first match, the function declaration itself
-      foreach ($function_call_matches as $function_call_match) {
-        $docblock['function calls'][$function_call_match[1]] = $function_call_match[1];
-      }
+      $docblock['function calls'] = api_parse_function_calls($docblock['code']);
 
       // Determine group membership.
       $group_matches = array();
@@ -332,6 +325,8 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
     $docblock['code'] = substr($source, $code_start, $code_end - $code_start);
     $docblock['code'] = api_format_php("<?php\n". $docblock['code'] ."\n?>");
 
+    $docblock['function calls'] = api_parse_function_calls($docblock['code']);
+
     $docblock['start_line'] = substr_count(substr($source, 0, $code_start), "\n");
 
     $docblocks[] = $docblock;
@@ -389,6 +384,21 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
   }
 
   api_save_documentation($docblocks, $branch_name, $file_name);
+}
+
+/**
+ * Find functions called in a formatted block of code.
+ */
+function api_parse_function_calls($code) {
+  $function_call_matches = array();
+  $function_calls = array();
+  preg_match_all('!<span class="php-function-or-constant">([a-zA-Z0-9_]+)</span>\(!', $code, $function_call_matches, PREG_SET_ORDER);
+  array_shift($function_call_matches); // Remove the first match, the function declaration itself.
+  foreach ($function_call_matches as $function_call_match) {
+    $function_calls[$function_call_match[1]] = $function_call_match[1];
+  }
+
+  return $function_calls;
 }
 
 /**
