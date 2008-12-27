@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.75 2008/12/27 00:53:32 drumm Exp $
+// $Id: api.module,v 1.76 2008/12/27 04:27:20 drumm Exp $
 
 /**
  * @file
@@ -1089,7 +1089,9 @@ function api_link_code($code, $branch_name) {
  * identifiers which are linked frequently change.
  */
 function api_link_documentation($documentation, $branch_name) {
-  return _api_link_documentation($documentation, $branch_name, array('tags', 'link', 'function', 'file'));
+  $documentation = _api_link_documentation($documentation, $branch_name, array('tags', 'link', 'function', 'file'));
+  // Remove escaping from \@.
+  return preg_replace('!\\\@!', '@', $documentation);
 }
 
 function _api_link_documentation($documentation, $branch_name, $stages = array()) {

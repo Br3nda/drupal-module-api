@@ -1,5 +1,5 @@
 <?php
-// $Id: api_link_documentation.test,v 1.5 2008/12/26 21:19:50 drumm Exp $
+// $Id: api_link_documentation.test,v 1.6 2008/12/27 04:27:20 drumm Exp $
 
 include_once './'. drupal_get_path('module', 'api') .'/tests/api_test_case.php';
 
@@ -53,9 +53,9 @@ class ApiLinkDocumentationTest extends ApiTestCase {
         'expected' => '<tag attribute="sample_function()">',
       ),
       array(
-        'message' => 'Function \@link',
-        'data' => '\@link sample_function A sample function. @endlink',
-        'expected' => '\@link sample_function A sample function. @endlink',
+        'message' => 'Function \\@link',
+        'data' => '\\@link sample_function A sample function. @endlink',
+        'expected' => '@link sample_function A sample function. @endlink',
       ),
 
       // Should be linked
@@ -102,9 +102,20 @@ class ApiLinkDocumentationTest extends ApiTestCase {
         'expected' => '<tag attribute="sample.php">',
       ),
       array(
-        'message' => 'File \@link, does fill in file link',
-        'data' => '\@link sample.php A sample file. @endlink',
-        'expected' => '\@link <a href="'. url('api/file/sample.php/6') .'" title="A sample file." class="local">sample.php</a> A sample file. @endlink',
+        'message' => 'File \\@link, does fill in file link',
+        'data' => '\\@link sample.php A sample file. @endlink',
+        'expected' => '@link <a href="'. url('api/file/sample.php/6') .'" title="A sample file." class="local">sample.php</a> A sample file. @endlink',
+      ),
+
+      array(
+        'message' => 'Escaped @tag is not unescaped.',
+        'data' => 'Escaped \\@stuff.',
+        'expected' => 'Escaped @stuff.',
+      ),
+      array(
+        'message' => 'Double-escaped @tag is not unescaped.',
+        'data' => 'Double-escaped \\\\@stuff.',
+        'expected' => 'Double-escaped \\@stuff.',
       ),
     );
 
