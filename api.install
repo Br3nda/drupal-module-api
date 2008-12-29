@@ -1,5 +1,5 @@
 <?php
-// $Id: api.install,v 1.10 2008/12/27 00:02:49 drumm Exp $
+// $Id: api.install,v 1.11 2008/12/29 21:36:19 drumm Exp $
 
 function api_schema() {
   $schema['api_branch'] = array(
@@ -7,8 +7,12 @@ function api_schema() {
       'branch_name' => array('type' => 'varchar', 'length' => '31', 'not null' => TRUE, 'default' => ''),
       'title' => array('type' => 'varchar', 'length' => '255', 'not null' => TRUE, 'default' => ''),
       'directory' => array('type' => 'varchar', 'length' => '255', 'not null' => TRUE, 'default' => ''),
+      'weight' => array('type' => 'int', 'unsigned' => TRUE, 'size' => 'tiny', 'not null' => TRUE, 'default' => 0),
     ),
     'primary key' => array('branch_name'),
+    'indexes' => array(
+      'weight' => array('weight'),
+    ),
   );
   $schema['api_documentation'] = array(
     'fields' => array(
@@ -222,6 +226,27 @@ function api_update_11() {
   db_change_field($return, 'api_function', '`return`', 'return_value',
     array('type' => 'text', 'size' => 'medium', 'not null' => TRUE)
   );
+
+  return $return;
+}
+
+/**
+ * Add a weight column to branches to simplify various algorithms.
+ */
+function api_update_12() {
+  $return = array();
+
+  db_add_field($return, 'api_branch', 'weight', array(
+    'type' => 'int',
+    'unsigned' => TRUE,
+    'size' => 'tiny',
+    'not null' => TRUE,
+    'default' => 0,
+  ), array(
+    'indexes' => array(
+      'weight' => array('weight'),
+    ),
+  ));
 
   return $return;
 }

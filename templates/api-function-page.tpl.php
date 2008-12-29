@@ -2,12 +2,12 @@
 
 <dl id="api-function-signature">
 <?php foreach ($signatures as $branch => $signature) { ?>
-  <?php if ($branch == $function->branch_name) { ?>
+  <?php if ($signature['active']) { ?>
     <dt style="width: <?= $branch_length ?>em"><strong><?= $branch ?></strong></dt>
-    <dd style="margin-left: <?= $branch_length + 0.5 ?>em"><strong><code><?= $signature ?></code></strong></dd>
+    <dd style="margin-left: <?= $branch_length + 0.5 ?>em"><strong><code><?= $signature['signature'] ?></code></strong></dd>
   <?php } else { ?>
-    <dt style="width: <?= $branch_length ?>em"><?= $branch ?></dt>
-    <dd style="margin-left: <?= $branch_length + 0.5 ?>em"><code><?= $signature ?></code></dd>
+    <dt style="width: <?= $branch_length ?>em"><?= l($branch, $signature['url']) ?></dt>
+    <dd style="margin-left: <?= $branch_length + 0.5 ?>em"><code><?= l($signature['signature'], $signature['url'], array('html' => TRUE)) ?></code></dd>
   <?php } ?>
 <?php } ?>
 </dl>

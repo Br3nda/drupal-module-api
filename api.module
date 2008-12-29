@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.76 2008/12/27 04:27:20 drumm Exp $
+// $Id: api.module,v 1.77 2008/12/29 21:36:19 drumm Exp $
 
 /**
  * @file
@@ -93,7 +93,7 @@ function api_get_branches($_reset = FALSE) {
   static $branches;
 
   if (!isset($branches) || $_reset) {
-    $result = db_query('SELECT branch_name, title, directory FROM {api_branch}');
+    $result = db_query('SELECT branch_name, title, directory FROM {api_branch} ORDER BY weight');
     $branches = array();
     while ($branch = db_fetch_object($result)) {
       $branches[$branch->branch_name] = $branch;
@@ -665,8 +665,16 @@ function api_save_branch($branch, $old_branch_name = NULL) {
     drupal_write_record('api_branch', $branch, 'branch_name');
   }
 
-  // Clear out the caches.
-  api_get_branches(TRUE);
+  // Reweight all branches.
+  $branches = api_get_branches(TRUE);
+  uksort($branches, 'version_compare');
+  $weight = 0;
+  foreach ($branches as $branch) {
+    $branch->weight = $weight;
+    $weight += 1;
+    drupal_write_record('api_branch', $branch, 'branch_name');
+  }
+
   menu_rebuild();
 }
 
@@ -854,61 +862,84 @@ function api_page_function_dump($branch_name) {
 function api_page_function($function) {
   drupal_set_title($function->title);
 
+  $last_signature = '';
   $signatures = array();
-  $branch_length = 0;
-  $result = db_query("SELECT d.branch_name, f.signature FROM {api_documentation} d INNER JOIN {api_function} f ON f.did = d.did WHERE d.object_type = 'function' AND d.title = '%s'", $function->title);
+  $n = 0;
+  $result = db_query("SELECT d.branch_name, f.signature FROM {api_documentation} d INNER JOIN {api_function} f ON f.did = d.did INNER JOIN {api_branch} b ON d.branch_name = b.branch_name WHERE d.object_type = 'function' AND d.title = '%s' ORDER BY b.weight", $function->title);
   while ($signature = db_fetch_object($result)) {
-    $tokens = token_get_all('<?php '. $signature->signature);
-    $name = $tokens[1][1];
-    $arguments[$signature->branch_name] = array();
-    $other[$signature->branch_name] = array();
-    $start = TRUE;
-    $d = 0;
-    foreach ($tokens as $token) {
-      $d += in_array($token, array('(', '{', '[')) - in_array($token, array(')', '}', ']'));
-      if ($d == 1 && $start && is_array($token) && $token[0] == T_VARIABLE) {
-        $arguments[$signature->branch_name][] = $token[1];
-        $other[$signature->branch_name][] = '';
-        $start = FALSE;
-      }
-      elseif ($d == 1 && $token == ',') {
-        $start = TRUE;
-        $other[$signature->branch_name][count($other[$signature->branch_name]) - 1] .= ',';
-      }
-      elseif ($d >= 1 && is_array($token)) {
-        $other[$signature->branch_name][count($other[$signature->branch_name]) - 1] .= $token[1];
-      }
-      elseif ($d >= 1 && !$start) {
-        $other[$signature->branch_name][count($other[$signature->branch_name]) - 1] .= $token;
-      }
+    if ($signature->signature == $last_signature) {
+      // Collapse unchanged signatures to one line.
+      $signature_info[$n - 1]['max branch name'] = $signature->branch_name;
+      $signature_info[$n - 1]['active'] = $signature_info[$n - 1]['active'] || $signature->branch_name == $function->branch_name;
     }
-    $branch_length = max($branch_length, strlen($signature->branch_name));
+    else {
+      $tokens = token_get_all('<?php '. $signature->signature);
+      $name = $tokens[1][1];
+      $signature_info[$n] = array(
+        'branch name' => $signature->branch_name,
+        'max branch name' => $signature->branch_name,
+        'active' => $signature->branch_name == $function->branch_name,
+        'arguments' => array(),
+        'other' => array(),
+      );
+      $start = TRUE;
+      $d = 0;
+      foreach ($tokens as $token) {
+        $d += in_array($token, array('(', '{', '[')) - in_array($token, array(')', '}', ']'));
+        if ($d == 1 && $start && is_array($token) && $token[0] == T_VARIABLE) {
+          $signature_info[$n]['arguments'][] = $token[1];
+          $signature_info[$n]['other'][] = '';
+          $start = FALSE;
+        }
+        elseif ($d == 1 && $token == ',') {
+          $start = TRUE;
+          $signature_info[$n]['other'][count($signature_info[$n]['other']) - 1] .= ',';
+        }
+        elseif ($d >= 1 && is_array($token)) {
+          $signature_info[$n]['other'][count($signature_info[$n]['other']) - 1] .= $token[1];
+        }
+        elseif ($d >= 1 && !$start) {
+          $signature_info[$n]['other'][count($signature_info[$n]['other']) - 1] .= $token;
+        }
+      }
+      $last_signature = $signature->signature;
+      $n += 1;
+    }
   }
-  $branches = array_keys($arguments);
-  usort($branches, 'version_compare');
-  foreach ($branches as $n => $branch_name) {
+  $branch_length = 0;
+  foreach ($signature_info as $n => $info) {
     $new = array();
-    if (isset($branches[$n - 1])) {
-      $new = array_diff($arguments[$branch_name], $arguments[$branches[$n - 1]]);
+    if (isset($signature_info[$n - 1])) {
+      $new = array_diff($info['arguments'], $signature_info[$n - 1]['arguments']);
     }
     $old = array();
-    if (isset($branches[$n + 1])) {
-      $old = array_diff($arguments[$branch_name], $arguments[$branches[$n + 1]]);
+    if (isset($signature_info[$n + 1])) {
+      $old = array_diff($info['arguments'], $signature_info[$n + 1]['arguments']);
     }
-    $signatures[$branch_name] = $name .'(';
-    foreach ($arguments[$branch_name] as $key => $argument) {
+    $branch_label = $info['branch name'];
+    if ($info['branch name'] != $info['max branch name']) {
+      $branch_label .= ' – '. $info['max branch name'];
+    }
+    $branch_length = max($branch_length, drupal_strlen($branch_label));
+    $signature = $name .'(';
+    foreach ($signature_info[$n]['arguments'] as $key => $argument) {
       if (in_array($argument, $old)) {
-        $signatures[$branch_name] .= '<del>'. $argument .'</del>';
+        $signature .= '<del>'. $argument .'</del>';
       }
       elseif (in_array($argument, $new)) {
-        $signatures[$branch_name] .= '<ins>'. $argument .'</ins>';
+        $signature .= '<ins>'. $argument .'</ins>';
       }
       else {
-        $signatures[$branch_name] .= $argument;
+        $signature .= $argument;
       }
-      $signatures[$branch_name] .= $other[$branch_name][$key];
+      $signature .= $info['other'][$key];
     }
-    $signatures[$branch_name] .= ')';
+    $signature .= ')';
+    $signatures[$branch_label] = array(
+      'signature' => $signature,
+      'url' => 'api/function/'. $name .'/'. $info['max branch name'],
+      'active' => $info['active'],
+    );
   }
 
   $documentation = api_link_documentation($function->documentation, $function->branch_name);

@@ -1,4 +1,4 @@
-/* $Id: api.css,v 1.8 2008/12/27 00:34:52 drumm Exp $ */
+/* $Id: api.css,v 1.9 2008/12/29 21:36:19 drumm Exp $ */
 
 .php {
   font-family: monospace;
@@ -42,14 +42,20 @@
 /* Function signature */
 
 #api-function-signature {
-  color: #808080;
   font-size: 1.2em;
 }
 
 #api-function-signature dt {
-  font-weight: normal;
   float: left;
   text-align: right;
+}
+
+#api-function-signature dt a,
+#api-function-signature dd a,
+#api-function-signature dt a:visited,
+#api-function-signature dd a:visited {
+  font-weight: normal;
+  color: #9d9d93;
 }
 
 #api-function-signature strong {
