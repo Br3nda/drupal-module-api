@@ -116,8 +116,8 @@ function api_branch_edit_form($form_state, $branch_name = NULL) {
 
 function api_branch_edit_form_validate($form, &$form_state) {
   // Check for bad characters in branch names.
-  if (preg_match('/[^A-Za-z0-9-_]/', $form_state['values']['branch_name'])) {
-    form_set_error('branch_name', t('Only letters, numbers, - and _ are allowed in the URL label.'));
+  if (preg_match('/[^A-Za-z0-9-_.]/', $form_state['values']['branch_name'])) {
+    form_set_error('branch_name', t("Only letters, numbers, '.', '-' and '_' are allowed in the URL label."));
   }
 
   // Check for duplicate branch names.
