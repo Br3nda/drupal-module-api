@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.77 2008/12/29 21:36:19 drumm Exp $
+// $Id: api.module,v 1.78 2008/12/30 00:58:53 drumm Exp $
 
 /**
  * @file
@@ -874,7 +874,12 @@ function api_page_function($function) {
     }
     else {
       $tokens = token_get_all('<?php '. $signature->signature);
-      $name = $tokens[1][1];
+      if ($tokens[1] == '&') {
+        $name = '&'. $tokens[2][1];
+      }
+      else {
+        $name = $tokens[1][1];
+      }
       $signature_info[$n] = array(
         'branch name' => $signature->branch_name,
         'max branch name' => $signature->branch_name,
