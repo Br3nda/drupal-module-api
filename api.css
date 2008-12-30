@@ -1,4 +1,4 @@
-/* $Id: api.css,v 1.10 2008/12/29 22:07:42 drumm Exp $ */
+/* $Id: api.css,v 1.11 2008/12/30 00:12:48 drumm Exp $ */
 
 .php {
   font-family: monospace;
@@ -93,4 +93,8 @@
 
 #api-search-form #edit-search {
   width: 115px;
+}
+
+#api-search-form #autocomplete {
+  width: 250px !important;
 }
