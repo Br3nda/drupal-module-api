@@ -4,7 +4,7 @@
 
 <?= $code ?>
 
-<?php if (isset($related_topics)) { ?>
-<h3><?= t('Related topics') ?></h3>';
+<?php if (!empty($related_topics)) { ?>
+<h3><?= t('Related topics') ?></h3>
 <?= $related_topics ?>
 <?php } ?>
