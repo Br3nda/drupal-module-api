@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.78 2008/12/30 00:58:53 drumm Exp $
+// $Id: api.module,v 1.79 2009/01/10 21:18:10 drumm Exp $
 
 /**
  * @file
@@ -889,22 +889,22 @@ function api_page_function($function) {
       );
       $start = TRUE;
       $d = 0;
+      $a = -1;
+      $signature_info[$n]['other'][$a] = '';
       foreach ($tokens as $token) {
         $d += in_array($token, array('(', '{', '[')) - in_array($token, array(')', '}', ']'));
         if ($d == 1 && $start && is_array($token) && $token[0] == T_VARIABLE) {
-          $signature_info[$n]['arguments'][] = $token[1];
-          $signature_info[$n]['other'][] = '';
+          $a += 1;
+          $signature_info[$n]['arguments'][$a] = $token[1];
+          $signature_info[$n]['other'][$a] = '';
           $start = FALSE;
         }
-        elseif ($d == 1 && $token == ',') {
-          $start = TRUE;
-          $signature_info[$n]['other'][count($signature_info[$n]['other']) - 1] .= ',';
-        }
         elseif ($d >= 1 && is_array($token)) {
-          $signature_info[$n]['other'][count($signature_info[$n]['other']) - 1] .= $token[1];
+          $signature_info[$n]['other'][$a] .= $token[1];
         }
-        elseif ($d >= 1 && !$start) {
-          $signature_info[$n]['other'][count($signature_info[$n]['other']) - 1] .= $token;
+        elseif ($d >= 1) {
+          $signature_info[$n]['other'][$a] .= $token;
+          $start = $start || $token == ',';
         }
       }
       $last_signature = $signature->signature;
@@ -926,7 +926,7 @@ function api_page_function($function) {
       $branch_label .= ' – '. $info['max branch name'];
     }
     $branch_length = max($branch_length, drupal_strlen($branch_label));
-    $signature = $name .'(';
+    $signature = $name . $info['other'][-1];
     foreach ($signature_info[$n]['arguments'] as $key => $argument) {
       if (in_array($argument, $old)) {
         $signature .= '<del>'. $argument .'</del>';
