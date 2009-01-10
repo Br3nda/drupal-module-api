@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.79 2009/01/10 21:18:10 drumm Exp $
+// $Id: api.module,v 1.80 2009/01/10 21:29:59 drumm Exp $
 
 /**
  * @file
@@ -894,6 +894,7 @@ function api_page_function($function) {
       foreach ($tokens as $token) {
         $d += in_array($token, array('(', '{', '[')) - in_array($token, array(')', '}', ']'));
         if ($d == 1 && $start && is_array($token) && $token[0] == T_VARIABLE) {
+          // New argument
           $a += 1;
           $signature_info[$n]['arguments'][$a] = $token[1];
           $signature_info[$n]['other'][$a] = '';
@@ -904,7 +905,8 @@ function api_page_function($function) {
         }
         elseif ($d >= 1) {
           $signature_info[$n]['other'][$a] .= $token;
-          $start = $start || $token == ',';
+          // Start looking for a new argument if we see a comma.
+          $start = $start || ($d == 1 && $token == ',');
         }
       }
       $last_signature = $signature->signature;
