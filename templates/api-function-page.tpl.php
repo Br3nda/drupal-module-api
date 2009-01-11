@@ -29,6 +29,16 @@
 <?= $related_topics ?>
 <?php } ?>
 
+<?php if (!empty($call)) { ?>
+<h3><?= t('Functions that call @name()', array('@name' => $function->title)) ?></h3>
+<?= $call ?>
+<?php } ?>
+
+<?php if (!empty($called)) { ?>
+<h3><?= t('Functions called by @name()', array('@name' => $function->title)) ?></h3>
+<?= $called ?>
+<?php } ?>
+
 <?php if (!empty($code)) { ?>
 <h3><?= t('Code') ?></h3>
 <?= $code ?>
