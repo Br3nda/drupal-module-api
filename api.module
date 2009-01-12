@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.82 2009/01/12 03:28:33 drumm Exp $
+// $Id: api.module,v 1.83 2009/01/12 03:56:59 drumm Exp $
 
 /**
  * @file
@@ -497,6 +497,12 @@ function api_theme() {
   return array(
     'api_branch_table' => array(
       'arguments' => array('element' => NULL),
+    ),
+    'api_related_topics' => array(
+      'arguments' => array(
+        'topics' => array(),
+      ),
+      'template' => 'templates/api-related-topics',
     ),
     'api_function_page' => array(
       'arguments' => array(
@@ -1065,16 +1071,13 @@ function api_related_topics($did, $branch_name) {
     t('Name'),
     t('Description'),
   );
-  $rows = array();
+  $topics = array();
   $result = db_query("SELECT d.object_name, d.title, d.summary FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'group' WHERE r.from_did = %d", $did);
   while ($group = db_fetch_object($result)) {
-    $rows[] = array(
-      l($group->title, 'api/group/'. $group->object_name .'/'. $branch_name),
-      api_link_documentation($group->summary, $branch_name),
-    );
+    $topics[l($group->title, 'api/group/'. $group->object_name .'/'. $branch_name)] = api_link_documentation($group->summary, $branch_name);
   }
-  if (count($rows) > 0) {
-    return theme('table', $header, $rows);
+  if (count($topics > 0)) {
+    return theme('api_related_topics', $topics);
   }
   return '';
 }
