@@ -30,12 +30,12 @@
 <?php } ?>
 
 <?php if (!empty($call)) { ?>
-<h3><?= t('Functions that call @name()', array('@name' => $function->title)) ?></h3>
+<h3><?= format_plural($call_count, '1 function calls @name()', '@count functions call @name()', array('@name' => $function->title)) ?></h3>
 <?= $call ?>
 <?php } ?>
 
 <?php if (!empty($called)) { ?>
-<h3><?= t('Functions called by @name()', array('@name' => $function->title)) ?></h3>
+<h3><?= format_plural($called_count, '1 function called by @name()', '@count functions called by @name()', array('@name' => $function->title)) ?></h3>
 <?= $called ?>
 <?php } ?>
 

@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.81 2009/01/11 01:12:16 drumm Exp $
+// $Id: api.module,v 1.82 2009/01/12 03:28:33 drumm Exp $
 
 /**
  * @file
@@ -507,7 +507,9 @@ function api_theme() {
         'parameters' => NULL,
         'return' => NULL,
         'related_topics' => NULL,
+        'call_count' => NULL,
         'call' => NULL,
+        'called_count' => NULL,
         'called' => NULL,
         'code' => NULL,
       ),
@@ -934,10 +936,12 @@ function api_page_function($function) {
   $return = api_link_documentation($function->return_value, $function->branch_name);
   $code = api_link_code($function->code, $function->branch_name);
   $related_topics = api_related_topics($function->did, $function->branch_name);
+  $call_count = db_result(db_query("SELECT count(*) FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.from_did = d.did AND d.object_type = 'function' WHERE r.to_did = %d", $function->did));
   $call = api_render_listing(db_query("SELECT d.object_name, d.title, d.summary, d.file_name, d.branch_name, d.object_type FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.from_did = d.did AND d.object_type = 'function' WHERE r.to_did = %d ORDER BY d.title", $function->did));
+  $called_count = db_result(db_query("SELECT count(*) FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'function' WHERE r.from_did = %d", $function->did));
   $called = api_render_listing(db_query("SELECT d.object_name, d.title, d.summary, d.file_name, d.branch_name, d.object_type FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'function' WHERE r.from_did = %d ORDER BY d.title", $function->did));
 
-  return theme('api_function_page', $function, $signatures, $branch_length, $documentation, $parameters, $return, $related_topics, $called, $call, $code);
+  return theme('api_function_page', $function, $signatures, $branch_length, $documentation, $parameters, $return, $related_topics, $call_count, $call, $called_count, $called, $code);
 }
 
 /**
