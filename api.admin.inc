@@ -146,6 +146,7 @@ function api_branch_edit_form_submit($form, &$form_state) {
   $branch->title = $form_state['values']['title'];
   $branch->directory = $form_state['values']['directory'];
 
+  //$branch = new StdObject();
   api_save_branch($branch, $form['branch_name']['#default_value']);
 
   drupal_set_message(t('Saved %branch_name.', array('%branch_name' => $branch->branch_name)));

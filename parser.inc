@@ -200,6 +200,32 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
         }
       }
     }
+    elseif (substr($source, $code_start, 5) == 'class') {
+
+			$class_matches = array ();
+			preg_match('!^class ([a-zA-Z0-9_]+) extends [a-zA-Z0-9_]+ {!i', substr($source, $code_start), $class_matches);
+			if (!count($class_matches)) {
+				preg_match('!^class ([a-zA-Z0-9_]+) {!i', substr($source, $code_start), $class_matches);
+			}
+			
+			$docblock['object_type'] = 'class';
+			$docblock['object_name'] = $class_matches[1];
+			$docblock['title'] = $class_matches[1];
+			$code_end = strpos($source, "\n}", $code_start) + 2;
+    	
+		
+			$docblock['code'] = substr($source, $code_start, $code_end - $code_start);
+			$docblock['code'] = api_format_php("<?php\n" . $docblock['code'] . "\n\?\>");
+			
+			$docblock['start_line'] = substr_count(substr($source, 0, $code_start), "\n");
+			
+			foreach ($nested_groups as $group_id) {
+				if (!empty ($group_id)) {
+					$docblock['groups'][] = $group_id;
+				}
+			}
+		
+    }
     else if (substr($source, $code_start, 6) == 'define') {
       $constant_matches = array();
 

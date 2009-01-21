@@ -139,6 +139,14 @@ function api_menu() {
     'page arguments' => array($default_branch, 'constant'),
     'type' => MENU_CALLBACK,
   );
+    $items['api/classes'] = array(
+    'title' => 'Classes',
+    'page callback' => 'api_page_listing',
+    'access callback' => $access_callback,
+    'access arguments' => $access_arguments,
+    'page arguments' => array($default_branch, 'class'),
+    'type' => MENU_CALLBACK,
+  );
   $items['api/globals'] = array(
     'title' => 'Globals',
     'page callback' => 'api_page_listing',
@@ -278,6 +286,15 @@ function api_menu() {
     'access arguments' => $access_arguments,
     'type' => MENU_CALLBACK,
   );
+    $items['api/class/%api_object'] = array(
+    'title' => 'Constant',
+    'load arguments' => array('class', $default_branch),
+    'page callback' => 'api_page_class',
+    'page arguments' => array(2),
+    'access callback' => $access_callback,
+    'access arguments' => $access_arguments,
+    'type' => MENU_CALLBACK,
+  );
   $items['api/global/%api_object'] = array(
     'title' => 'Global',
     'load arguments' => array('global', $default_branch),
@@ -337,6 +354,14 @@ function api_menu() {
       'access arguments' => $access_arguments,
       'type' => ($branch->branch_name == $default_branch) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
     );
+      $items['api/classes/'. $branch->branch_name] = array(
+      'title' => $branch->title,
+      'page callback' => 'api_page_listing',
+      'page arguments' => array($branch->branch_name, 'class'),
+      'access callback' => $access_callback,
+      'access arguments' => $access_arguments,
+      'type' => ($branch->branch_name == $default_branch) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
+    );
     $items['api/globals/'. $branch->branch_name] = array(
       'title' => $branch->title,
       'page callback' => 'api_page_listing',
@@ -377,6 +402,15 @@ function api_menu() {
       'title' => $branch->title,
       'load arguments' => array('constant', $branch->branch_name),
       'page callback' => 'api_page_constant',
+      'page arguments' => array(2),
+      'access callback' => $access_callback,
+      'access arguments' => $access_arguments,
+      'type' => ($branch->branch_name == $default_branch) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
+    );
+    $items['api/class/%api_object/'. $branch->branch_name] = array(
+      'title' => $branch->title,
+      'load arguments' => array('class', $branch->branch_name),
+      'page callback' => 'api_page_class',
       'page arguments' => array(2),
       'access callback' => $access_callback,
       'access arguments' => $access_arguments,
@@ -607,6 +641,7 @@ function api_block($op, $delta = NULL, $edit = array()) {
             $links = array();
             $links[] = l($branches[$branch]->title, 'api'. $suffix);
             $links[] = l(t('Constants'), 'api/constants'. $suffix);
+            $links[] = l(t('Classes'), 'api/classes'. $suffix);
             $links[] = l(t('Files'), 'api/files'. $suffix);
             $links[] = l(t('Functions'), 'api/functions'. $suffix);
             $links[] = l(t('Globals'), 'api/globals'. $suffix);
@@ -964,6 +999,19 @@ function api_page_constant($constant) {
 }
 
 /**
+ * Menu callback; displays documentation for a constant.
+ */
+function api_page_class($class) {
+  drupal_set_title($class->title);
+
+  $documentation = api_link_documentation($class->documentation, $class->branch_name);
+  $code = api_link_code($class->code, $class->branch_name);
+  $related_topics = api_related_topics($class->did, $class->branch_name);
+
+  return theme('api_constant_page', $class, $documentation, $code, $related_topics);
+}
+
+/**
  * Menu callback; displays documentation for a global.
  */
 function api_page_global($global) {
@@ -1087,6 +1135,7 @@ function api_file_link($object) {
 }
 
 function api_cron() {
+	db_query("UPDATE {api_file} SET modified = 52");
   include_once './'. drupal_get_path('module', 'api') .'/parser.inc';
   api_update_all_branches();
 }
@@ -1224,6 +1273,7 @@ function api_link_name($name, $branch_name, $prepend = '', $append = '', $text =
       'file' => array(),
       'group' => array(),
       'constant' => array(),
+      'class' => array(),
       'global' => array(),
     );
     while ($object = db_fetch_object($result)) {
@@ -1257,6 +1307,9 @@ function api_link_name($name, $branch_name, $prepend = '', $append = '', $text =
   }
   elseif (array_key_exists($name, $local_objects['constant'])) {
     return l($text, 'api/constant/'. $local_objects['constant'][$name]->object_name .'/'. $branch_name, array('attributes' => array('title' => $local_objects['constant'][$name]->summary, 'class' => 'local')));
+  }
+    elseif (array_key_exists($name, $local_objects['class'])) {
+    return l($text, 'api/class/'. $local_objects['class'][$name]->object_name .'/'. $branch_name, array('attributes' => array('title' => $local_objects['class'][$name]->summary, 'class' => 'local')));
   }
   elseif (array_key_exists($name, $local_objects['global'])) {
     return l($text, 'api/global/'. $local_objects['global'][$name]->object_name .'/'. $branch_name, array('attributes' => array('title' => $local_objects['global'][$name]->summary, 'class' => 'local')));
