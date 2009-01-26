@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.87 2009/01/26 20:13:16 drumm Exp $
+// $Id: api.module,v 1.88 2009/01/26 20:23:44 drumm Exp $
 
 /**
  * @file
@@ -971,30 +971,36 @@ function api_page_function($function) {
   $related_topics = api_related_topics($function->did, $function->branch_name);
 
   $call_count = db_result(db_query("SELECT count(*) FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.from_did = d.did AND d.object_type = 'function' WHERE r.to_did = %d", $function->did));
-  $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name, d.branch_name, d.object_type FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.from_did = d.did AND d.object_type = 'function' WHERE r.to_did = %d ORDER BY d.title", $function->did);
-  $call_functions = array();
-  while ($object = db_fetch_object($result)) {
-    $call_functions[] = array(
-      'function' => l($object->title, 'api/'. $object->object_type .'/'. $object->object_name .'/'. $object->branch_name),
-      'file' => api_file_link($object),
-      'description' => api_link_documentation($object->summary, $object->branch_name),
-    );
+  $call = '';
+  if ($call_count > 0) {
+    $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name, d.branch_name, d.object_type FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.from_did = d.did AND d.object_type = 'function' WHERE r.to_did = %d ORDER BY d.title", $function->did);
+    $call_functions = array();
+    while ($object = db_fetch_object($result)) {
+      $call_functions[] = array(
+        'function' => l($object->title, 'api/'. $object->object_type .'/'. $object->object_name .'/'. $object->branch_name),
+        'file' => api_file_link($object),
+        'description' => api_link_documentation($object->summary, $object->branch_name),
+      );
+    }
+    $call_title = format_plural($call_count, '1 function calls @name()', '@count functions call @name()', array('@name' => $function->title));
+    $call = theme('api_expandable', '<h3>'. api_show_l('▸ '. $call_title) .'</h3>', '<h3>'. api_hide_l('▾ '. $call_title) .'</h3>'. theme('api_functions', $call_functions));
   }
-  $call_title = format_plural($call_count, '1 function calls @name()', '@count functions call @name()', array('@name' => $function->title));
-  $call = theme('api_expandable', '<h3>'. api_show_l('▸ '. $call_title) .'</h3>', '<h3>'. api_hide_l('▾ '. $call_title) .'</h3>'. theme('api_functions', $call_functions));
 
   $called_count = db_result(db_query("SELECT count(*) FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'function' WHERE r.from_did = %d", $function->did));
-  $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name, d.branch_name, d.object_type FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'function' WHERE r.from_did = %d ORDER BY d.title", $function->did);
-  $called_functions = array();
-  while ($object = db_fetch_object($result)) {
-    $called_functions[] = array(
-      'function' => l($object->title, 'api/'. $object->object_type .'/'. $object->object_name .'/'. $object->branch_name),
-      'file' => api_file_link($object),
-      'description' => api_link_documentation($object->summary, $object->branch_name),
-    );
+  $called = '';
+  if ($called_count > 0) {
+    $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name, d.branch_name, d.object_type FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'function' WHERE r.from_did = %d ORDER BY d.title", $function->did);
+    $called_functions = array();
+    while ($object = db_fetch_object($result)) {
+      $called_functions[] = array(
+        'function' => l($object->title, 'api/'. $object->object_type .'/'. $object->object_name .'/'. $object->branch_name),
+        'file' => api_file_link($object),
+        'description' => api_link_documentation($object->summary, $object->branch_name),
+      );
+    }
+    $called_title = format_plural($called_count, '1 function called by @name()', '@count functions called by @name()', array('@name' => $function->title));
+    $called = theme('api_expandable', '<h3>'. api_show_l('▸ '. $called_title) .'</h3>', '<h3>'. api_hide_l('▾ '. $called_title) .'</h3>'. theme('api_functions', $called_functions));
   }
-  $called_title = format_plural($called_count, '1 function called by @name()', '@count functions called by @name()', array('@name' => $function->title));
-  $called = theme('api_expandable', '<h3>'. api_show_l('▸ '. $called_title) .'</h3>', '<h3>'. api_hide_l('▾ '. $called_title) .'</h3>'. theme('api_functions', $called_functions));
 
   return theme('api_function_page', $function, $signatures, $branch_length, $documentation, $parameters, $return, $related_topics, $call, $called, $code);
 }
