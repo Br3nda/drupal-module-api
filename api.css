@@ -1,9 +1,4 @@
-/* $Id: api.css,v 1.14 2009/01/26 20:12:27 drumm Exp $ */
-
-/* Expandable regions */
-html.js div.api-expandable div.content {
-  display: none;
-}
+/* $Id: api.css,v 1.15 2009/01/26 20:18:46 drumm Exp $ */
 
 /* Expandable regions */
 html.js div.api-expandable div.content {
