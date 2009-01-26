@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.83 2009/01/12 03:56:59 drumm Exp $
+// $Id: api.module,v 1.84 2009/01/26 16:07:03 drumm Exp $
 
 /**
  * @file
@@ -1076,7 +1076,7 @@ function api_related_topics($did, $branch_name) {
   while ($group = db_fetch_object($result)) {
     $topics[l($group->title, 'api/group/'. $group->object_name .'/'. $branch_name)] = api_link_documentation($group->summary, $branch_name);
   }
-  if (count($topics > 0)) {
+  if (count($topics) > 0) {
     return theme('api_related_topics', $topics);
   }
   return '';
