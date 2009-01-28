@@ -162,13 +162,19 @@ function api_branch_delete_form($form_state, $branch_name) {
 }
 
 function api_branch_delete_form_submit($form, &$form_state) {
-  db_query("DELETE FROM {api_branch} WHERE branch_name = '%s'", $form['branch_name']['#value']);
-  db_query("DELETE t FROM {api_file} t INNER JOIN {api_documentation} d ON d.did = t.did WHERE d.branch_name = '%s'", $form['branch_name']['#value']);
-  db_query("DELETE t FROM {api_function} t INNER JOIN {api_documentation} d ON d.did = t.did WHERE d.branch_name = '%s'", $form['branch_name']['#value']);
-  db_query("DELETE t FROM {api_reference_storage} t INNER JOIN {api_documentation} d ON d.did = t.from_did WHERE d.branch_name = '%s'", $form['branch_name']['#value']);
-  db_query("DELETE t FROM {api_reference_storage} t INNER JOIN {api_documentation} d ON d.did = t.to_did WHERE d.branch_name = '%s'", $form['branch_name']['#value']);
-  db_query("DELETE t FROM {api_documentation} t INNER JOIN {api_documentation} d ON d.did = t.did WHERE d.branch_name = '%s'", $form['branch_name']['#value']);
+  $result = db_query("SELECT did FROM {api_documentation} WHERE branch_name = '%s'", $form['branch_name']['#value']);
+  $dids = array();
+  while($did = db_fetch_object($result)) {
+    $dids[] = $did->did;
+  }
+  $placeholders = db_placeholders($dids);
 
+  db_query("DELETE FROM {api_file} WHERE did IN (". $placeholders .")", $dids);
+  db_query("DELETE FROM {api_function} WHERE did IN (". $placeholders .")", $dids);
+  db_query("DELETE FROM {api_reference_storage} WHERE from_did IN (". $placeholders .") OR to_did IN (". $placeholders .")", array_merge($dids, $dids));
+  db_query("DELETE FROM {api_documentation} WHERE did IN (". $placeholders .")", $dids);
+  db_query("DELETE FROM {api_branch} WHERE branch_name = '%s'", $form['branch_name']['#value']);
+	
   if (variable_get('api_default_branch', NULL) == $form['branch_name']['#value']) {
     variable_set('api_default_branch', NULL);
   }
