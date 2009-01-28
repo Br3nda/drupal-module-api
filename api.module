@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.88 2009/01/26 20:23:44 drumm Exp $
+// $Id: api.module,v 1.88.2.1 2009/01/28 17:21:15 drumm Exp $
 
 /**
  * @file
@@ -765,7 +765,8 @@ function api_search_form_submit($form, &$form_state) {
 }
 
 function api_search_redirect() {
-  drupal_goto('api/search/'. variable_get('api_default_branch', NULL) .'/'. implode('/', func_get_args()));
+  $args = func_get_args();
+  drupal_goto('api/search/'. variable_get('api_default_branch', NULL) .'/'. implode('/', $args));
 }
 
 /**
