@@ -30,7 +30,6 @@
 <?php } ?>
 
 <?= $call ?>
-<?= $called ?>
 
 <?php if (!empty($code)) { ?>
 <h3><?= t('Code') ?></h3>
