@@ -1,4 +1,4 @@
-/* $Id: api.css,v 1.15.2.1 2009/01/28 20:53:13 drumm Exp $ */
+/* $Id: api.css,v 1.15.2.2 2009/01/28 21:05:03 drumm Exp $ */
 
 /* Expandable regions */
 html.js div.api-expandable div.content {
@@ -55,10 +55,15 @@ dl.api-related-topics dd {
 #api-function-signature dt {
   float: left;
   text-align: right;
+  width: 5em;
+}
+#api-function-signature dd {
+  margin-left: 5.5em;
 }
 #api-function-signature dt.header {
   float: none;
   font-size: 0.6944em;
+  width: 7.2em;
 }
 #api-function-signature dt a,
 #api-function-signature dd a,

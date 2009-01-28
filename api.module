@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.88.2.2 2009/01/28 20:10:20 drumm Exp $
+// $Id: api.module,v 1.88.2.3 2009/01/28 21:05:03 drumm Exp $
 
 /**
  * @file
@@ -522,7 +522,6 @@ function api_theme() {
       'arguments' => array(
         'function' => NULL,
         'signatures' => NULL,
-        'branch_length' => NULL,
         'documentation' => NULL,
         'parameters' => NULL,
         'return' => NULL,
@@ -928,7 +927,6 @@ function api_page_function($function) {
       $n += 1;
     }
   }
-  $branch_length = 0;
   foreach ($signature_info as $n => $info) {
     $new = array();
     if (isset($signature_info[$n - 1])) {
@@ -942,7 +940,6 @@ function api_page_function($function) {
     if ($info['branch name'] != $info['max branch name']) {
       $branch_label .= ' – '. $info['max branch name'];
     }
-    $branch_length = max($branch_length, drupal_strlen($branch_label));
     $signature = $name . $info['other'][-1];
     foreach ($signature_info[$n]['arguments'] as $key => $argument) {
       if (in_array($argument, $old)) {
@@ -986,7 +983,7 @@ function api_page_function($function) {
     $call = theme('api_expandable', '<h3>'. api_show_l('▸ '. $call_title) .'</h3>', '<h3>'. api_hide_l('▾ '. $call_title) .'</h3>'. theme('api_functions', $call_functions));
   }
 
-  return theme('api_function_page', $function, $signatures, $branch_length, $documentation, $parameters, $return, $related_topics, $call, $code);
+  return theme('api_function_page', $function, $signatures, $documentation, $parameters, $return, $related_topics, $call, $code);
 }
 
 /**

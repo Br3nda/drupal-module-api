@@ -1,14 +1,14 @@
 <p><?= api_file_link($function) ?>, <?= t('line') ?> <?= $function->start_line ?></p>
 
 <dl id="api-function-signature">
-<dt class="header" style="width: <?= $branch_length * 1.44 ?>em">Versions</dt>
+<dt class="header">Versions</dt>
 <?php foreach ($signatures as $branch => $signature) { ?>
   <?php if ($signature['active']) { ?>
-    <dt style="width: <?= $branch_length ?>em"><strong><?= $branch ?></strong></dt>
-    <dd style="margin-left: <?= $branch_length + 0.5 ?>em"><strong><code><?= $signature['signature'] ?></code></strong></dd>
+    <dt><strong><?= $branch ?></strong></dt>
+    <dd><strong><code><?= $signature['signature'] ?></code></strong></dd>
   <?php } else { ?>
-    <dt style="width: <?= $branch_length ?>em"><?= l($branch, $signature['url']) ?></dt>
-    <dd style="margin-left: <?= $branch_length + 0.5 ?>em"><code><?= l($signature['signature'], $signature['url'], array('html' => TRUE)) ?></code></dd>
+    <dt><?= l($branch, $signature['url']) ?></dt>
+    <dd><code><?= l($signature['signature'], $signature['url'], array('html' => TRUE)) ?></code></dd>
   <?php } ?>
 <?php } ?>
 </dl>
