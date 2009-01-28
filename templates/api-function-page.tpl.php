@@ -1,7 +1,7 @@
 <p><?= api_file_link($function) ?>, <?= t('line') ?> <?= $function->start_line ?></p>
 
 <dl id="api-function-signature">
-<dt class="header">Versions</dt>
+<dt class="header"><?= t('Versions') ?></dt>
 <?php foreach ($signatures as $branch => $signature) { ?>
   <?php if ($signature['active']) { ?>
     <dt><strong><?= $branch ?></strong></dt>
