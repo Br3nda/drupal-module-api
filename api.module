@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.88.2.3 2009/01/28 21:05:03 drumm Exp $
+// $Id: api.module,v 1.88.2.4 2009/01/29 06:00:05 drumm Exp $
 
 /**
  * @file
@@ -875,6 +875,11 @@ function api_page_function_dump($branch_name) {
  */
 function api_page_function($function) {
   drupal_set_title($function->title);
+  drupal_set_breadcrumb(array(
+    l(t('Home'), ''),
+    l(t('API reference'), 'api'),
+    l(basename($function->file_name), 'api/file/'. $function->file_name .'/'. $function->branch_name),
+  ));
 
   $last_signature = '';
   $signatures = array();
