@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.83 2009/01/12 03:56:59 drumm Exp $
+// $Id: api.module,v 1.88 2009/01/26 20:23:44 drumm Exp $
 
 /**
  * @file
@@ -158,6 +158,14 @@ function api_menu() {
   $items['api/files'] = array(
     'title' => 'Files',
     'page callback' => 'api_page_listing',
+    'access callback' => $access_callback,
+    'access arguments' => $access_arguments,
+    'page arguments' => array($default_branch, 'file'),
+    'type' => MENU_CALLBACK,
+  );
+    $items['api/parse'] = array(
+    'title' => 'Parse',
+    'page callback' => 'api_file_parse',
     'access callback' => $access_callback,
     'access arguments' => $access_arguments,
     'page arguments' => array($default_branch, 'file'),
@@ -425,7 +433,7 @@ function api_menu() {
       'access arguments' => $access_arguments,
       'type' => ($branch->branch_name == $default_branch) ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
     );
-    // This is nonideal. We have a dynamic number of elments in the middle of
+    // This is nonideal. We have a dynamic number of elements in the middle of
     // the path when the menu system expects that sort of thing to be at the
     // end.
     for ($i = 0; $i < API_MAX_FILE_ELEMENTS; $i += 1) {
@@ -445,6 +453,7 @@ function api_menu() {
         'type' => MENU_DEFAULT_LOCAL_TASK,
         'weight' => -10,
       );
+      
       $items['api/file/%api_filename'. $elements .'/'. $branch->branch_name .'/source'] = array(
         'title' => 'View source',
         'load arguments' => array('%map', '%index', $branch->branch_name),
@@ -453,7 +462,7 @@ function api_menu() {
         'access callback' => $access_callback,
         'access arguments' => $access_arguments,
         'type' => MENU_LOCAL_TASK,
-      );
+        );
     }
     $items['api/group/%api_object/'. $branch->branch_name] = array(
       'title' => $branch->title,
@@ -532,11 +541,25 @@ function api_theme() {
     'api_branch_table' => array(
       'arguments' => array('element' => NULL),
     ),
+    'api_expandable' => array(
+      'arguments' => array(
+        'prompt' => NULL,
+        'content' => NULL,
+        'class' => NULL,
+      ),
+      'template' => 'templates/api-expandable',
+    ),
     'api_related_topics' => array(
       'arguments' => array(
         'topics' => array(),
       ),
       'template' => 'templates/api-related-topics',
+    ),
+    'api_functions' => array(
+      'arguments' => array(
+        'functions' => array(),
+      ),
+      'template' => 'templates/api-functions',
     ),
     'api_function_page' => array(
       'arguments' => array(
@@ -547,9 +570,7 @@ function api_theme() {
         'parameters' => NULL,
         'return' => NULL,
         'related_topics' => NULL,
-        'call_count' => NULL,
         'call' => NULL,
-        'called_count' => NULL,
         'called' => NULL,
         'code' => NULL,
       ),
@@ -597,6 +618,7 @@ function api_theme() {
 
 function api_init() {
   drupal_add_css(drupal_get_path('module', 'api') .'/api.css');
+  drupal_add_js(drupal_get_path('module', 'api') .'/api.js');
 }
 
 function api_block($op, $delta = NULL, $edit = array()) {
@@ -654,6 +676,20 @@ function api_block($op, $delta = NULL, $edit = array()) {
           return;
       }
   }
+}
+
+/**
+ * Show link for theme('api_expandable').
+ */
+function api_show_l($text) {
+  return l($text, $_REQUEST['q'], array('attributes' => array('class' => 'show-content')));
+}
+
+/**
+ * Hide link for theme('api_expandable').
+ */
+function api_hide_l($text) {
+  return l($text, $_REQUEST['q'], array('attributes' => array('class' => 'hide-content')));
 }
 
 /**
@@ -816,7 +852,9 @@ function api_autocomplete($branch_name, $search = '') {
 function api_page_branch($branch_name) {
   $result = db_query("SELECT documentation FROM {api_documentation} WHERE object_name = '%s' AND branch_name = '%s' AND object_type = 'mainpage'", $branch_name, $branch_name);
   if ($branch = db_fetch_object($result)) {
-    return api_link_documentation($branch->documentation, $branch_name);
+    $output = api_link_documentation($branch->documentation, $branch_name);
+    
+    return $output;
   }
   else {
     return t('A main page for this branch has not been indexed. A documentation comment with <code>@mainpage {title}</code> needs to exist, or has not been indexed yet. For Drupal core, this is availiable in the <a href="http://cvs.drupal.org/viewvc.py/drupal/contributions/docs/developer/">developer documentation</a> in the contributions repository.');
@@ -827,7 +865,8 @@ function api_page_branch($branch_name) {
  * Menu callback; displays an object listing.
  */
 function api_page_listing($branch_name, $object_type) {
-  $result = pager_query("SELECT * FROM {api_documentation} WHERE branch_name = '%s' AND object_type = '%s' ORDER BY title", 50, 0, NULL, $branch_name, $object_type);
+  $result = pager_query("SELECT * FROM {api_documentation} WHERE branch_name = '%s' AND object_type = '%s' ORDER BY title", 
+  50, 0, NULL, $branch_name, $object_type);
   return api_render_listing($result) . theme('pager', NULL, 50, 0);
 }
 
@@ -844,6 +883,7 @@ function api_render_listing($result, $empty_message = NULL) {
     t('Name'),
     t('Location'),
     t('Description'),
+    t('Actions')
   );
 
   $rows = array();
@@ -852,6 +892,7 @@ function api_render_listing($result, $empty_message = NULL) {
       l($object->title, 'api/'. $object->object_type .'/'. $object->object_name .'/'. $object->branch_name),
       '<small>'. api_file_link($object) .'</small>',
       api_link_documentation($object->summary, $object->branch_name),
+      ($object->object_type == 'file' ? l(t('reparse'), 'api/parse/'. $object->name) : $object->object_type)
     );
   }
 
@@ -977,12 +1018,40 @@ function api_page_function($function) {
   $return = api_link_documentation($function->return_value, $function->branch_name);
   $code = api_link_code($function->code, $function->branch_name);
   $related_topics = api_related_topics($function->did, $function->branch_name);
-  $call_count = db_result(db_query("SELECT count(*) FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.from_did = d.did AND d.object_type = 'function' WHERE r.to_did = %d", $function->did));
-  $call = api_render_listing(db_query("SELECT d.object_name, d.title, d.summary, d.file_name, d.branch_name, d.object_type FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.from_did = d.did AND d.object_type = 'function' WHERE r.to_did = %d ORDER BY d.title", $function->did));
-  $called_count = db_result(db_query("SELECT count(*) FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'function' WHERE r.from_did = %d", $function->did));
-  $called = api_render_listing(db_query("SELECT d.object_name, d.title, d.summary, d.file_name, d.branch_name, d.object_type FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'function' WHERE r.from_did = %d ORDER BY d.title", $function->did));
 
-  return theme('api_function_page', $function, $signatures, $branch_length, $documentation, $parameters, $return, $related_topics, $call_count, $call, $called_count, $called, $code);
+  $call_count = db_result(db_query("SELECT count(*) FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.from_did = d.did AND d.object_type = 'function' WHERE r.to_did = %d", $function->did));
+  $call = '';
+  if ($call_count > 0) {
+    $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name, d.branch_name, d.object_type FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.from_did = d.did AND d.object_type = 'function' WHERE r.to_did = %d ORDER BY d.title", $function->did);
+    $call_functions = array();
+    while ($object = db_fetch_object($result)) {
+      $call_functions[] = array(
+        'function' => l($object->title, 'api/'. $object->object_type .'/'. $object->object_name .'/'. $object->branch_name),
+        'file' => api_file_link($object),
+        'description' => api_link_documentation($object->summary, $object->branch_name),
+      );
+    }
+    $call_title = format_plural($call_count, '1 function calls @name()', '@count functions call @name()', array('@name' => $function->title));
+    $call = theme('api_expandable', '<h3>'. api_show_l('▸ '. $call_title) .'</h3>', '<h3>'. api_hide_l('▾ '. $call_title) .'</h3>'. theme('api_functions', $call_functions));
+  }
+
+  $called_count = db_result(db_query("SELECT count(*) FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'function' WHERE r.from_did = %d", $function->did));
+  $called = '';
+  if ($called_count > 0) {
+    $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name, d.branch_name, d.object_type FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'function' WHERE r.from_did = %d ORDER BY d.title", $function->did);
+    $called_functions = array();
+    while ($object = db_fetch_object($result)) {
+      $called_functions[] = array(
+        'function' => l($object->title, 'api/'. $object->object_type .'/'. $object->object_name .'/'. $object->branch_name),
+        'file' => api_file_link($object),
+        'description' => api_link_documentation($object->summary, $object->branch_name),
+      );
+    }
+    $called_title = format_plural($called_count, '1 function called by @name()', '@count functions called by @name()', array('@name' => $function->title));
+    $called = theme('api_expandable', '<h3>'. api_show_l('▸ '. $called_title) .'</h3>', '<h3>'. api_hide_l('▾ '. $called_title) .'</h3>'. theme('api_functions', $called_functions));
+  }
+
+  return theme('api_function_page', $function, $signatures, $branch_length, $documentation, $parameters, $return, $related_topics, $call, $called, $code);
 }
 
 /**
@@ -1072,21 +1141,34 @@ function api_page_file_source($file) {
   return api_link_code($file->code, $file->branch_name);
 }
 
+function api_file_parse($file) {
+  drupal_set_title($file->title);
+  return 'hello';
+}
+
 /**
  * Menu callback; displays documentation for a group.
  */
 function api_page_group($group) {
   drupal_set_title($group->title);
-
+  
   $documentation = api_link_documentation($group->documentation, $group->branch_name);
 
   $rows = array(
     'constant' => array(),
+    'class' => array(),
     'global' => array(),
     'function' => array(),
   );
-  $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name, d.object_type, d.branch_name FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.from_did = d.did AND d.object_type IN ('constant', 'global', 'function') WHERE r.to_did = %d ORDER BY d.object_name", $group->did);
+  $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name, d.object_type, d.branch_name" .
+  		" FROM {api_reference_storage} r INNER JOIN {api_documentation} d" .
+  		" ON r.from_did = d.did WHERE r.to_did = %d ORDER BY d.object_type, d.object_name", 
+  		$group->did); //AND d.object_type IN ('constant', 'class', 'global', 'function') 
+  
+  //drupal_set_message(sprintf("SELECT d.object_name, d.title, d.summary, d.file_name, d.object_type, d.branch_name FROM api_reference_storage r INNER JOIN api_documentation d ON r.from_did = d.did  WHERE r.to_did = %d ORDER BY d.object_name", $group->did));
+  
   while ($object = db_fetch_object($result)) {
+  	drupal_set_message($object->name);
     $rows[$object->object_type][] = array(
       l($object->title, 'api/'. $object->object_type .'/'. $object->object_name .'/'. $object->branch_name),
       '<small>'. api_file_link($object) .'</small>',
@@ -1098,9 +1180,14 @@ function api_page_group($group) {
     t('Location'),
     t('Description'),
   );
+  
   $constants = '';
   if (count($rows['constant']) > 0) {
     $constants = theme('table', $header, $rows['constant']);
+  }
+  $classes = '';
+  if (count($rows['class']) > 0) {
+    $constants = theme('table', $header, $rows['class']);
   }
   $globals = '';
   if (count($rows['global']) > 0) {
@@ -1110,9 +1197,14 @@ function api_page_group($group) {
   if (count($rows['function']) > 0) {
     $functions = theme('table', $header, $rows['function']);
   }
+  $files = '';
+  if (isset($rows['file']) && count($rows['file']) > 0) {
+    $functions = theme('table', $header, $rows['function']);
+  }
 
-  return theme('api_group_page', $documentation, $constants, $globals, $functions);
+  return theme('api_group_page', $documentation, $constants, $classes, $globals, $functions);
 }
+
 
 function api_related_topics($did, $branch_name) {
   $header = array(
@@ -1120,11 +1212,13 @@ function api_related_topics($did, $branch_name) {
     t('Description'),
   );
   $topics = array();
-  $result = db_query("SELECT d.object_name, d.title, d.summary FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'group' WHERE r.from_did = %d", $did);
+  $result = db_query("SELECT d.object_name, d.title, d.summary FROM {api_reference_storage} r INNER JOIN {api_documentation} d " .
+  		" ON r.to_did = d.did AND d.object_type = 'group' WHERE r.from_did = %d", $did);
+
   while ($group = db_fetch_object($result)) {
     $topics[l($group->title, 'api/group/'. $group->object_name .'/'. $branch_name)] = api_link_documentation($group->summary, $branch_name);
   }
-  if (count($topics > 0)) {
+  if (count($topics) > 0) {
     return theme('api_related_topics', $topics);
   }
   return '';
@@ -1135,7 +1229,6 @@ function api_file_link($object) {
 }
 
 function api_cron() {
-	db_query("UPDATE {api_file} SET modified = 52");
   include_once './'. drupal_get_path('module', 'api') .'/parser.inc';
   api_update_all_branches();
 }

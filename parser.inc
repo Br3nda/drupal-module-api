@@ -50,7 +50,7 @@ function api_parse_text_file($file_path, $branch_name, $file_name) {
     'title' => strpos($file_name, '/') ? substr($file_name, strrpos($file_name, '/') + 1) : $file_name,
     'summary' => api_documentation_summary(api_format_documentation($source, $branch_name)),
     'documentation' => api_format_documentation($source, $branch_name),
-    'code' => api_format_php($source),
+    'code' => api_format_php($source, $file_path),
     'version' => '',
     'modified' => filemtime($file_path),
   );
@@ -109,7 +109,7 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
   $source = str_replace("\r", "\n", $source);
 
   $docblocks = array();
-
+  
   // Set up documentation block for file, in case it is not explicitly defined.
   $docblocks[0] = array(
     'object_name' => $file_name,
@@ -119,7 +119,7 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
     'title' => strpos($file_name, '/') ? substr($file_name, strrpos($file_name, '/') + 1) : $file_name,
     'summary' => '',
     'documentation' => '',
-    'code' => api_format_php($source),
+    'code' => api_format_php($source, $file_path),
     'version' => '',
     'modified' => filemtime($file_path),
   );
@@ -191,6 +191,7 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
       // Determine group membership.
       $group_matches = array();
       preg_match_all('!@(ingroup|addtogroup) ([a-zA-Z0-9_]+)!', $docblock['content'], $group_matches);
+      //var_dump($group_matches);
       $docblock['groups'] = $group_matches[2];
       $docblock['content'] = preg_replace('!@ingroup.*?\n!', '', $docblock['content']);
 
@@ -199,9 +200,9 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
           $docblock['groups'][] = $group_id;
         }
       }
+      $methods = api_parse_class_methods($source);
     }
     elseif (substr($source, $code_start, 5) == 'class') {
-
 			$class_matches = array ();
 			preg_match('!^class ([a-zA-Z0-9_]+) extends [a-zA-Z0-9_]+ {!i', substr($source, $code_start), $class_matches);
 			if (!count($class_matches)) {
@@ -224,7 +225,6 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
 					$docblock['groups'][] = $group_id;
 				}
 			}
-		
     }
     else if (substr($source, $code_start, 6) == 'define') {
       $constant_matches = array();
@@ -408,8 +408,13 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
 
     $docblocks[] = $docblock;
   }
+  
 
   api_save_documentation($docblocks, $branch_name, $file_name);
+}
+
+function api_parse_class_methods($source) {
+	//var_dump($source);
 }
 
 /**
@@ -450,13 +455,24 @@ function api_save_documentation($docblocks, $branch_name = NULL, $file_name = NU
 
   $dids = array();
   foreach ($docblocks as $docblock) {
+  	if (!drupal_validate_utf8($docblock['code'])) {
+  		drupal_set_message(t('Invalid chars in !filename', array('!filename' => $docblock['file_name'])), 'error');
+  		return;
+  	}
+  	//ensure our strings are 
     $did = db_result(db_query("SELECT did FROM {api_documentation} WHERE object_name = '%s' AND branch_name = '%s' AND object_type = '%s'", $docblock['object_name'], $docblock['branch_name'], $docblock['object_type'], $docblock['file_name']));
     if ($did > 0) {
       db_query("UPDATE {api_documentation} SET title = '%s', file_name = '%s', summary = '%s', documentation = '%s', code = '%s' WHERE did = %d", $docblock['title'], $docblock['file_name'], $docblock['summary'], $docblock['documentation'], $docblock['code'], $did);
     }
     else {
-      db_query("INSERT INTO {api_documentation} (object_name, branch_name, object_type, title, file_name, summary, documentation, code) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')", $docblock['object_name'], $docblock['branch_name'], $docblock['object_type'], $docblock['title'], $docblock['file_name'], $docblock['summary'], $docblock['documentation'], $docblock['code']);
+
+      db_query("INSERT INTO {api_documentation} (object_name, branch_name, object_type, title, file_name, summary, documentation, code) " .
+      		"VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')", 
+      		$docblock['object_name'], $docblock['branch_name'], $docblock['object_type'], $docblock['title'], $docblock['file_name'], $docblock['summary'], $docblock['documentation'], $docblock['code']);
       $did = db_last_insert_id('api_documentation', 'did');
+      if (!$did) {
+      	drupal_set_message('Failed to save documentation', $did);
+      }
     }
 
     switch ($docblock['object_type']) {
@@ -623,7 +639,7 @@ function api_documentation_summary($documentation) {
 /**
  * Colorize and format a PHP script.
  */
-function api_format_php($code) {
+function api_format_php($code, $filename = null) {
   $output = '';
 
   if (!defined('T_ML_COMMENT')) {
@@ -633,8 +649,11 @@ function api_format_php($code) {
     define('T_DOC_COMMENT', T_COMMENT);
   }
 
-  $tokens = token_get_all($code);
-
+  if (!drupal_validate_utf8($code)) {
+  	drupal_set_message(t('%filename contains bad unicode', array('%filename' => $filename)));
+  	return ;
+  }
+  $tokens = token_get_all( utf8_decode($code));
   $in_string = FALSE;
 
   foreach ($tokens as $token) {
@@ -753,6 +772,8 @@ function api_schedule_update_references() {
  */
 function api_update_references() {
   // Figure out all the dids of the object/branch/types.
+  //db_query('UPDATE {api_reference_storage} r, {api_documentation} d SET r.to_did = d.did WHERE r.object_name = d.object_name AND r.branch_name = d.branch_name AND r.object_type = d.object_type');
+  
   db_query('UPDATE {api_reference_storage} r, {api_documentation} d SET r.to_did = d.did WHERE r.object_name = d.object_name AND r.branch_name = d.branch_name AND r.object_type = d.object_type');
 }
 
@@ -775,9 +796,7 @@ function api_update_branch($branch) {
     'engine' => 'api_parse_php_file',
     'theme' => 'api_parse_php_file',
     'profile' => 'api_parse_php_file',
-
     'txt' => 'api_parse_text_file',
-
     'htm' => 'api_parse_html_file',
     'html' => 'api_parse_html_file',
   );
@@ -791,7 +810,7 @@ function api_update_branch($branch) {
 
   foreach (api_scan_directories($branch->directory) as $path => $file_name) {
     preg_match('!\.([a-z]*)$!', $file_name, $matches);
-    if (isset($parse_functions[$matches[1]])) {
+    if (isset($matches[1]) && isset($parse_functions[$matches[1]])) {
       if (isset($files[$file_name])) {
         $parse = (filemtime($path) > $files[$file_name]->modified);
         unset($files[$file_name]); // All remaining files will be removed.

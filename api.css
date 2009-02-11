@@ -1,4 +1,9 @@
-/* $Id: api.css,v 1.12 2009/01/12 03:56:59 drumm Exp $ */
+/* $Id: api.css,v 1.15 2009/01/26 20:18:46 drumm Exp $ */
+
+/* Expandable regions */
+html.js div.api-expandable div.content {
+  display: none;
+}
 
 /* PHP code */
 .php {
@@ -34,9 +39,11 @@
 
 /* Lists */
 dl.api-related-topics dt {
+  clear: both;
   float: left;
   padding: 0 1em 0 0;
 }
+dl.api-functions dd,
 dl.api-related-topics dd {
   margin: 0 0 0 1em;
 }

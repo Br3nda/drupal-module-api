@@ -29,15 +29,8 @@
 <?= $related_topics ?>
 <?php } ?>
 
-<?php if (!empty($call)) { ?>
-<h3><?= format_plural($call_count, '1 function calls @name()', '@count functions call @name()', array('@name' => $function->title)) ?></h3>
 <?= $call ?>
-<?php } ?>
-
-<?php if (!empty($called)) { ?>
-<h3><?= format_plural($called_count, '1 function called by @name()', '@count functions called by @name()', array('@name' => $function->title)) ?></h3>
 <?= $called ?>
-<?php } ?>
 
 <?php if (!empty($code)) { ?>
 <h3><?= t('Code') ?></h3>

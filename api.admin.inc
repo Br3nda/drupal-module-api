@@ -146,7 +146,6 @@ function api_branch_edit_form_submit($form, &$form_state) {
   $branch->title = $form_state['values']['title'];
   $branch->directory = $form_state['values']['directory'];
 
-  //$branch = new StdObject();
   api_save_branch($branch, $form['branch_name']['#default_value']);
 
   drupal_set_message(t('Saved %branch_name.', array('%branch_name' => $branch->branch_name)));
@@ -163,13 +162,22 @@ function api_branch_delete_form($form_state, $branch_name) {
 }
 
 function api_branch_delete_form_submit($form, &$form_state) {
+  //get did list
+  $result = db_query("SELECT did FROM {api_documentation} WHERE branch_name = '%s'", $form['branch_name']['#value']);
+  
+  $dids = array();
+  while($obj = db_fetch_object($result)) {
+      $dids[] = $obj->did;
+  }
+  //they came from the db, so they're gonna be ints
+  $did_list = implode(', ', $dids);
+  
+  db_query("DELETE FROM {api_file} WHERE did in ($did_list)");
+  db_query("DELETE FROM {api_function} WHERE did in ($did_list)");
+  db_query("DELETE FROM {api_reference_storage} WHERE from_did in ($did_list) OR to_did in ($did_list)");
+  db_query("DELETE FROM {api_documentation} WHERE did in ($did_list)");
   db_query("DELETE FROM {api_branch} WHERE branch_name = '%s'", $form['branch_name']['#value']);
-  db_query("DELETE t FROM {api_file} t INNER JOIN {api_documentation} d ON d.did = t.did WHERE d.branch_name = '%s'", $form['branch_name']['#value']);
-  db_query("DELETE t FROM {api_function} t INNER JOIN {api_documentation} d ON d.did = t.did WHERE d.branch_name = '%s'", $form['branch_name']['#value']);
-  db_query("DELETE t FROM {api_reference_storage} t INNER JOIN {api_documentation} d ON d.did = t.from_did WHERE d.branch_name = '%s'", $form['branch_name']['#value']);
-  db_query("DELETE t FROM {api_reference_storage} t INNER JOIN {api_documentation} d ON d.did = t.to_did WHERE d.branch_name = '%s'", $form['branch_name']['#value']);
-  db_query("DELETE t FROM {api_documentation} t INNER JOIN {api_documentation} d ON d.did = t.did WHERE d.branch_name = '%s'", $form['branch_name']['#value']);
-
+	
   if (variable_get('api_default_branch', NULL) == $form['branch_name']['#value']) {
     variable_set('api_default_branch', NULL);
   }

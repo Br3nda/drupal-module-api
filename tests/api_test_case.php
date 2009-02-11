@@ -12,6 +12,7 @@ class ApiTestCase extends DrupalWebTestCase {
     $branch->branch_name = '6';
     $branch->title = 'Testing 6';
     $branch->directory = drupal_get_path('module', 'api') .'/tests/sample';
+    $branch = null;
     api_save_branch($branch);
 
     // Parse the code.
