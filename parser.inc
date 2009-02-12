@@ -156,9 +156,9 @@ function api_parse_php_file($file_path, $branch_name, $file_name) {
 
       $docblock['object_type'] = 'function';
       preg_match('!^function (&?([a-zA-Z0-9_]+)\(.*?)\s*\{!', substr($source, $code_start), $function_matches);
-      $docblock['object_name'] = $function_matches[2];
-      $docblock['title'] = $function_matches[2];
-      $docblock['signature'] = $function_matches[1];
+      $docblock['object_name'] = (isset($function_matches[2]) ? $function_matches[2] : '');
+      $docblock['title'] = (isset($function_matches[2]) ? $function_matches[2] : '');
+      $docblock['signature'] = (isset($function_matches[1]) ? $function_matches[1] : '');
 
       // We rely on the Drupal coding convention that functions are closed in column 1.
       $code_end = strpos($source, "\n}", $code_start) + 2;
@@ -456,7 +456,7 @@ function api_save_documentation($docblocks, $branch_name = NULL, $file_name = NU
   $dids = array();
   foreach ($docblocks as $docblock) {
   	if (!drupal_validate_utf8($docblock['code'])) {
-  		drupal_set_message(t('Invalid chars in !filename', array('!filename' => $docblock['file_name'])), 'error');
+  		watchdog('error', 'Invalid chars in !filename', array('!filename' => $docblock['file_name']));
   		return;
   	}
   	//ensure our strings are 
@@ -774,7 +774,8 @@ function api_update_references() {
   // Figure out all the dids of the object/branch/types.
   //db_query('UPDATE {api_reference_storage} r, {api_documentation} d SET r.to_did = d.did WHERE r.object_name = d.object_name AND r.branch_name = d.branch_name AND r.object_type = d.object_type');
   
-  db_query('UPDATE {api_reference_storage} r, {api_documentation} d SET r.to_did = d.did WHERE r.object_name = d.object_name AND r.branch_name = d.branch_name AND r.object_type = d.object_type');
+  db_query('UPDATE {api_reference_storage} r SET to_did = d.did' .
+  		' FROM {api_documentation} d WHERE r.object_name = d.object_name AND r.branch_name = d.branch_name AND r.object_type = d.object_type');
 }
 
 function api_schedule_cache_clear() {
