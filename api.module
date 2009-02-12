@@ -607,6 +607,7 @@ function api_theme() {
     'api_group_page' => array(
       'arguments' => array(
         'documentation' => NULL,
+        'classes' => null,
         'constants' => NULL,
         'globals' => NULL,
         'functions' => NULL,
@@ -883,7 +884,6 @@ function api_render_listing($result, $empty_message = NULL) {
     t('Name'),
     t('Location'),
     t('Description'),
-    t('Actions')
   );
 
   $rows = array();
@@ -892,7 +892,7 @@ function api_render_listing($result, $empty_message = NULL) {
       l($object->title, 'api/'. $object->object_type .'/'. $object->object_name .'/'. $object->branch_name),
       '<small>'. api_file_link($object) .'</small>',
       api_link_documentation($object->summary, $object->branch_name),
-      ($object->object_type == 'file' ? l(t('reparse'), 'api/parse/'. $object->name) : $object->object_type)
+      
     );
   }
 
@@ -1165,10 +1165,7 @@ function api_page_group($group) {
   		" ON r.from_did = d.did WHERE r.to_did = %d ORDER BY d.object_type, d.object_name", 
   		$group->did); //AND d.object_type IN ('constant', 'class', 'global', 'function') 
   
-  //drupal_set_message(sprintf("SELECT d.object_name, d.title, d.summary, d.file_name, d.object_type, d.branch_name FROM api_reference_storage r INNER JOIN api_documentation d ON r.from_did = d.did  WHERE r.to_did = %d ORDER BY d.object_name", $group->did));
-  
   while ($object = db_fetch_object($result)) {
-  	drupal_set_message($object->name);
     $rows[$object->object_type][] = array(
       l($object->title, 'api/'. $object->object_type .'/'. $object->object_name .'/'. $object->branch_name),
       '<small>'. api_file_link($object) .'</small>',
@@ -1181,28 +1178,35 @@ function api_page_group($group) {
     t('Description'),
   );
   
-  $constants = '';
-  if (count($rows['constant']) > 0) {
-    $constants = theme('table', $header, $rows['constant']);
+  foreach(array('constant', 'class', 'global', 'function', 'file') as $type) {
+  	if (isset($rows[$type]) && count($rows[$type])) {
+  		$documentation .= theme('box', t($type .'s'), theme('table', $header, $rows[$type]));
+  	}
   }
-  $classes = '';
-  if (count($rows['class']) > 0) {
-    $constants = theme('table', $header, $rows['class']);
-  }
-  $globals = '';
-  if (count($rows['global']) > 0) {
-    $globals = theme('table', $header, $rows['global']);
-  }
-  $functions = '';
-  if (count($rows['function']) > 0) {
-    $functions = theme('table', $header, $rows['function']);
-  }
-  $files = '';
-  if (isset($rows['file']) && count($rows['file']) > 0) {
-    $functions = theme('table', $header, $rows['function']);
-  }
-
-  return theme('api_group_page', $documentation, $constants, $classes, $globals, $functions);
+//  $constants = '';
+//  if (count($rows['constant']) > 0) {
+//    $constants = theme('table', $header, $rows['constant']);
+//  }
+//  $classes = '';
+//  if (count($rows['class']) > 0) {
+//    $classes = theme('table', $header, $rows['class']);
+//  }
+//  $globals = '';
+//  if (count($rows['global']) > 0) {
+//    $globals = theme('table', $header, $rows['global']);
+//  }
+//  $functions = '';
+//  if (count($rows['function']) > 0) {
+//    $functions = theme('table', $header, $rows['function']);
+//  }
+//  $files = '';
+//  if (isset($rows['file']) && count($rows['file']) > 0) {
+//    $files = theme('table', $header, $rows['file']);
+//  }
+  
+	return $documentation;
+	 
+//  return theme('api_group_page', $documentation, $classes, $constants, $globals, $functions);
 }
 
 
