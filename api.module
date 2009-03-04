@@ -1,5 +1,5 @@
 <?php
-// $Id: api.module,v 1.88.2.4 2009/01/29 06:00:05 drumm Exp $
+// $Id: api.module,v 1.88 2009/01/26 20:23:44 drumm Exp $
 
 /**
  * @file
@@ -522,11 +522,13 @@ function api_theme() {
       'arguments' => array(
         'function' => NULL,
         'signatures' => NULL,
+        'branch_length' => NULL,
         'documentation' => NULL,
         'parameters' => NULL,
         'return' => NULL,
         'related_topics' => NULL,
         'call' => NULL,
+        'called' => NULL,
         'code' => NULL,
       ),
       'template' => 'templates/api-function-page',
@@ -763,8 +765,7 @@ function api_search_form_submit($form, &$form_state) {
 }
 
 function api_search_redirect() {
-  $args = func_get_args();
-  drupal_goto('api/search/'. variable_get('api_default_branch', NULL) .'/'. implode('/', $args));
+  drupal_goto('api/search/'. variable_get('api_default_branch', NULL) .'/'. implode('/', func_get_args()));
 }
 
 /**
@@ -875,11 +876,6 @@ function api_page_function_dump($branch_name) {
  */
 function api_page_function($function) {
   drupal_set_title($function->title);
-  drupal_set_breadcrumb(array(
-    l(t('Home'), ''),
-    l(t('API reference'), 'api'),
-    l(basename($function->file_name), 'api/file/'. $function->file_name .'/'. $function->branch_name),
-  ));
 
   $last_signature = '';
   $signatures = array();
@@ -932,6 +928,7 @@ function api_page_function($function) {
       $n += 1;
     }
   }
+  $branch_length = 0;
   foreach ($signature_info as $n => $info) {
     $new = array();
     if (isset($signature_info[$n - 1])) {
@@ -945,6 +942,7 @@ function api_page_function($function) {
     if ($info['branch name'] != $info['max branch name']) {
       $branch_label .= ' – '. $info['max branch name'];
     }
+    $branch_length = max($branch_length, drupal_strlen($branch_label));
     $signature = $name . $info['other'][-1];
     foreach ($signature_info[$n]['arguments'] as $key => $argument) {
       if (in_array($argument, $old)) {
@@ -988,7 +986,23 @@ function api_page_function($function) {
     $call = theme('api_expandable', '<h3>'. api_show_l('▸ '. $call_title) .'</h3>', '<h3>'. api_hide_l('▾ '. $call_title) .'</h3>'. theme('api_functions', $call_functions));
   }
 
-  return theme('api_function_page', $function, $signatures, $documentation, $parameters, $return, $related_topics, $call, $code);
+  $called_count = db_result(db_query("SELECT count(*) FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'function' WHERE r.from_did = %d", $function->did));
+  $called = '';
+  if ($called_count > 0) {
+    $result = db_query("SELECT d.object_name, d.title, d.summary, d.file_name, d.branch_name, d.object_type FROM {api_reference_storage} r INNER JOIN {api_documentation} d ON r.to_did = d.did AND d.object_type = 'function' WHERE r.from_did = %d ORDER BY d.title", $function->did);
+    $called_functions = array();
+    while ($object = db_fetch_object($result)) {
+      $called_functions[] = array(
+        'function' => l($object->title, 'api/'. $object->object_type .'/'. $object->object_name .'/'. $object->branch_name),
+        'file' => api_file_link($object),
+        'description' => api_link_documentation($object->summary, $object->branch_name),
+      );
+    }
+    $called_title = format_plural($called_count, '1 function called by @name()', '@count functions called by @name()', array('@name' => $function->title));
+    $called = theme('api_expandable', '<h3>'. api_show_l('▸ '. $called_title) .'</h3>', '<h3>'. api_hide_l('▾ '. $called_title) .'</h3>'. theme('api_functions', $called_functions));
+  }
+
+  return theme('api_function_page', $function, $signatures, $branch_length, $documentation, $parameters, $return, $related_topics, $call, $called, $code);
 }
 
 /**
