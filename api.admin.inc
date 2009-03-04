@@ -226,6 +226,12 @@ function api_reindex_form() {
 }
 
 function api_reindex_form_submit($form, &$form_state) {
-  db_query("UPDATE {api_file} SET modified = 52");
+  // XXX: Debug code.
+  db_query("DELETE FROM {api_documentation}");
+  db_query("DELETE FROM {api_file}");
+  db_query("DELETE FROM {api_function");
+  db_query("DELETE FROM {api_reference_storage");
+  variable_del("cron_semaphore");
+
   drupal_set_message(t('All files have been tagged for reindexing. The index will be rebuilt during the next few runs of !cron.', array('!cron' => l('cron.php', 'admin/reports/status/run-cron'))));
 }
